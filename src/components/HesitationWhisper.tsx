@@ -2,13 +2,12 @@
 // "Hesitation is the wound through which they enter."
 
 import { AnimatePresence, cubicBezier, motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { isPlayerHesitating } from '../engine/commune-intelligence'
 
 const EASE_SOFT = cubicBezier(0.22, 1, 0.36, 1)
 
-// Whispers the commune makes when it detects hesitation
 const WHISPERS_LOW_CHORUS = [
   'Take your time.',
   'There is no wrong choice here.',
@@ -26,33 +25,27 @@ const WHISPERS_HIGH_CHORUS = [
   'It is easier this way.',
 ]
 
-export function HesitationWhisper({
-  choicesVisible,
-  chorusLevel,
-}: {
-  choicesVisible: boolean
-  chorusLevel: number
-}) {
+function HesitationWhisperInner({ chorusLevel }: { chorusLevel: number }) {
   const [whisper, setWhisper] = useState<string | null>(null)
-  const [startTime] = useState(() => performance.now())
+  const startTimeRef = useRef(0)
+
+  const pickWhisper = useCallback(() => {
+    const pool = chorusLevel >= 3 ? WHISPERS_HIGH_CHORUS : WHISPERS_LOW_CHORUS
+    setWhisper(pool[Math.floor(Math.random() * pool.length)])
+  }, [chorusLevel])
 
   useEffect(() => {
-    if (!choicesVisible) {
-      setWhisper(null)
-      return
-    }
+    startTimeRef.current = performance.now()
 
-    // Check every second whether the player is hesitating
     const interval = setInterval(() => {
-      const elapsed = performance.now() - startTime
+      const elapsed = performance.now() - startTimeRef.current
       if (isPlayerHesitating(elapsed)) {
-        const pool = chorusLevel >= 3 ? WHISPERS_HIGH_CHORUS : WHISPERS_LOW_CHORUS
-        setWhisper(pool[Math.floor(Math.random() * pool.length)])
+        pickWhisper()
       }
     }, 2000)
 
     return () => clearInterval(interval)
-  }, [choicesVisible, chorusLevel, startTime])
+  }, [pickWhisper])
 
   return (
     <AnimatePresence>
@@ -70,4 +63,16 @@ export function HesitationWhisper({
       )}
     </AnimatePresence>
   )
+}
+
+/** Mounts/unmounts based on choicesVisible — remounting resets all state cleanly */
+export function HesitationWhisper({
+  choicesVisible,
+  chorusLevel,
+}: {
+  choicesVisible: boolean
+  chorusLevel: number
+}) {
+  if (!choicesVisible) return null
+  return <HesitationWhisperInner chorusLevel={chorusLevel} />
 }

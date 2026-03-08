@@ -65,6 +65,11 @@ function App() {
   const resetGame = useGameStore((state) => state.resetGame)
   const restoreSave = useGameStore((state) => state.restoreSave)
 
+  const currentScene = getCurrentScene(gameState)
+
+  const resolvedText = useMemo(() => resolveText(currentScene, gameState), [currentScene, gameState])
+  const choices = useMemo(() => resolveChoices(currentScene, gameState), [currentScene, gameState])
+
   // Wrap makeChoice to record Fourth Wall decision timing + commune intelligence
   const makeChoice = useCallback((choiceId: string) => {
     const decisionMs = recordDecisionTime()
@@ -88,11 +93,6 @@ function App() {
 
     rawMakeChoice(choiceId)
   }, [rawMakeChoice, choices, currentScene.pressure])
-
-  const currentScene = getCurrentScene(gameState)
-
-  const resolvedText = useMemo(() => resolveText(currentScene, gameState), [currentScene, gameState])
-  const choices = useMemo(() => resolveChoices(currentScene, gameState), [currentScene, gameState])
   const typingDelay = useMemo(() => {
     const base = resolveTypingDelay(currentScene, gameState)
     // Apply user's textSpeed setting

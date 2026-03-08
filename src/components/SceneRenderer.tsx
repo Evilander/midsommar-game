@@ -188,10 +188,12 @@ export function SceneRenderer({
   const choicesVisible = choices.length > 0 && elapsedMs >= revealChoicesAtMs
 
   // Record reading completion when text finishes naturally (not from fast-forward)
-  if (textComplete && !readingRecordedRef.current && !didFastForwardRef.current) {
-    readingRecordedRef.current = true
-    recordReadingBehavior(false)
-  }
+  useEffect(() => {
+    if (textComplete && !readingRecordedRef.current && !didFastForwardRef.current) {
+      readingRecordedRef.current = true
+      recordReadingBehavior(false)
+    }
+  }, [textComplete])
   const displayedText = resolvedText.slice(0, typedCharacters)
   const transition = getTransition(scene)
   const background = getBackground(scene.background)
