@@ -4,6 +4,9 @@ import { cubicBezier, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 
 import { evaluateAchievements, getAllAchievements, type Achievement } from '../engine/achievements'
+import { getProfile, getManipulationStyle } from '../engine/commune-intelligence'
+import { getCompletionStats, recordPlaythroughComplete } from '../engine/completion'
+import { calculateScore } from '../engine/scoring'
 import { getCycleCount } from '../engine/ghost'
 import type { GameState } from '../engine/types'
 
@@ -62,6 +65,33 @@ function perceptionLabel(key: string, value: number): string {
   }
 }
 
+// The commune's assessment of the player — deeply unsettling personalized text
+function communeAssessment(compliance: number, impulsiveness: number, attentiveness: number): string[] {
+  const lines: string[] = []
+
+  if (compliance > 0.65) {
+    lines.push('She came willingly.')
+  } else if (compliance > 0.4) {
+    lines.push('She resisted, but not where it mattered.')
+  } else {
+    lines.push('She fought. We adapted.')
+  }
+
+  if (impulsiveness > 0.6) {
+    lines.push('Her choices came fast — the body knew before the mind.')
+  } else if (impulsiveness < 0.25) {
+    lines.push('She weighed every word. We gave her time. Patience is a gift.')
+  }
+
+  if (attentiveness > 0.7) {
+    lines.push('She read everything. She wanted to understand.')
+  } else if (attentiveness < 0.3) {
+    lines.push('She skimmed the surface. The roots grew beneath.')
+  }
+
+  return lines
+}
+
 function endingTitle(state: GameState): string {
   if (state.flags.entered_temple) return 'The Ninth Place'
   if (state.flags.dropped_torch) return 'The Walk Away'
@@ -79,14 +109,17 @@ export function JourneySummary({
 }) {
   const cycles = getCycleCount()
 
-  // Evaluate achievements for this playthrough
+  // Evaluate achievements and record completion
   const [newAchievements, setNewAchievements] = useState<Achievement[]>([])
   const [allAchievements, setAllAchievements] = useState<Array<Achievement & { unlocked: boolean }>>([])
+  const [completion, setCompletion] = useState(getCompletionStats())
 
   useEffect(() => {
+    recordPlaythroughComplete()
     const fresh = evaluateAchievements(gameState)
     setNewAchievements(fresh)
     setAllAchievements(getAllAchievements())
+    setCompletion(getCompletionStats())
   }, [gameState])
 
   const unlockedCount = allAchievements.filter(a => a.unlocked).length
@@ -97,6 +130,14 @@ export function JourneySummary({
     .map(([key]) => FLAG_MOMENTS[key])
 
   const perceptionEntries = Object.entries(gameState.perception) as [string, number][]
+  const score = calculateScore(gameState)
+  const communeProfile = getProfile()
+  const manipStyle = getManipulationStyle()
+  const assessment = communeAssessment(
+    communeProfile.compliance,
+    communeProfile.impulsiveness,
+    communeProfile.attentiveness,
+  )
 
   return (
     <motion.section
@@ -112,7 +153,7 @@ export function JourneySummary({
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3, duration: 1, ease: EASE_SOFT }}
         >
-          Your Dani
+          {score.title}
         </motion.h2>
 
         <motion.p
@@ -120,6 +161,15 @@ export function JourneySummary({
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.6 }}
           transition={{ delay: 0.6, duration: 1 }}
+        >
+          {score.description}
+        </motion.p>
+
+        <motion.p
+          className="journey-summary__ending-type"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.4 }}
+          transition={{ delay: 0.8, duration: 0.8 }}
         >
           Ending: {endingTitle(gameState)}
         </motion.p>
@@ -148,13 +198,52 @@ export function JourneySummary({
               <span>{cycles}</span>
             </div>
           )}
+          <div className="journey-summary__stat-line">
+            <span>Harga discovered</span>
+            <span>{completion.percentage}%</span>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="journey-summary__scores"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.0, duration: 1 }}
+        >
+          {([
+            ['Clarity', score.clarity, 'How much she saw through them'],
+            ['Surrender', score.surrender, 'How deeply she was absorbed'],
+            ['Survival', score.survival, 'How much of herself remains'],
+          ] as const).map(([label, value, hint], i) => (
+            <motion.div
+              key={label}
+              className="journey-summary__score-group"
+              initial={{ x: -15, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 1.1 + i * 0.2, duration: 0.8, ease: EASE_SOFT }}
+            >
+              <div className="journey-summary__score-header">
+                <span className="journey-summary__score-label">{label}</span>
+                <span className="journey-summary__score-value">{value}</span>
+              </div>
+              <div className="journey-summary__bar-track">
+                <motion.div
+                  className="journey-summary__bar-fill journey-summary__bar-fill--score"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${value}%` }}
+                  transition={{ delay: 1.3 + i * 0.2, duration: 1.2, ease: EASE_SOFT }}
+                />
+              </div>
+              <span className="journey-summary__score-hint">{hint}</span>
+            </motion.div>
+          ))}
         </motion.div>
 
         <motion.div
           className="journey-summary__perception"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1.2, duration: 1 }}
+          transition={{ delay: 2.0, duration: 1 }}
         >
           {perceptionEntries.map(([key, value], i) => (
             <motion.div
@@ -231,11 +320,42 @@ export function JourneySummary({
           </motion.div>
         )}
 
+        {communeProfile.totalChoicesMade > 3 && (
+          <motion.div
+            className="journey-summary__commune-knows"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 3.8 + newAchievements.length * 0.15, duration: 1.5 }}
+          >
+            <h3 className="journey-summary__commune-title">The Commune Knows</h3>
+            <ul className="journey-summary__commune-lines">
+              {assessment.map((line, i) => (
+                <motion.li
+                  key={i}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.55 }}
+                  transition={{ delay: 4.2 + newAchievements.length * 0.15 + i * 0.6, duration: 1.2, ease: EASE_SOFT }}
+                >
+                  {line}
+                </motion.li>
+              ))}
+            </ul>
+            <motion.p
+              className="journey-summary__commune-style"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.35 }}
+              transition={{ delay: 5.5 + newAchievements.length * 0.15, duration: 1.5 }}
+            >
+              Approach: {manipStyle}
+            </motion.p>
+          </motion.div>
+        )}
+
         <motion.div
           className="journey-summary__actions"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 3.5 + newAchievements.length * 0.15, duration: 1 }}
+          transition={{ delay: 3.5 + newAchievements.length * 0.15 + (communeProfile.totalChoicesMade > 3 ? 2.5 : 0), duration: 1 }}
         >
           <button type="button" className="journey-summary__btn" onClick={onCredits}>
             Credits

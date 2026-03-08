@@ -1,11 +1,14 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { breathIn, breathOut, startBreathSync, stopBreathSync } from './engine/breath-sync'
+import { adaptiveTextSpeedMultiplier, recordChoiceBehavior, type ChoiceAlignment } from './engine/commune-intelligence'
 import { resolveChoices, resolveText, resolveTypingDelay, resolveVisualEffects } from './engine/director'
 import { getTabTitle, getHiddenTitle, getReturnTitle, markChoicesVisible, recordDecisionTime, timeOfDayStressModifier } from './engine/fourthwall'
 import { computeStress, textDistortionLevel } from './engine/stress'
 import { AmbientSoundbed } from './components/AmbientSoundbed'
 import { ChapterCard } from './components/ChapterCard'
+import { ClueJournal } from './components/ClueJournal'
 import { CreditsScreen } from './components/CreditsScreen'
 import { EndingScreen } from './components/EndingScreen'
 import { HeartbeatEngine } from './components/HeartbeatEngine'
@@ -51,6 +54,7 @@ function App() {
   const [phase, setPhase] = useState<AppPhase>('title')
   const [settings, setSettings] = useState<GameSettings>(loadSettings)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [journalOpen, setJournalOpen] = useState(false)
   const [pendingDay, setPendingDay] = useState<number | null>(null)
   const [lastDay, setLastDay] = useState(1)
   const bridgeRef = useRef<RuntimeBridge | null>(null)
@@ -61,11 +65,29 @@ function App() {
   const resetGame = useGameStore((state) => state.resetGame)
   const restoreSave = useGameStore((state) => state.restoreSave)
 
-  // Wrap makeChoice to record Fourth Wall decision timing
+  // Wrap makeChoice to record Fourth Wall decision timing + commune intelligence
   const makeChoice = useCallback((choiceId: string) => {
-    recordDecisionTime()
+    const decisionMs = recordDecisionTime()
+
+    // Detect alignment for commune intelligence
+    const choice = choices.find(c => c.id === choiceId)
+    let alignment: ChoiceAlignment = 'neutral'
+    if (choice) {
+      const fx = choice.effects
+      if (currentScene.pressure?.defaultChoice === choiceId || choice.chorusText) {
+        alignment = 'commune'
+      } else if (fx.perception?.belonging && fx.perception.belonging > 5) {
+        alignment = 'commune'
+      } else if (fx.perception?.autonomy && fx.perception.autonomy > 5) {
+        alignment = 'resistance'
+      } else if (fx.chorus && fx.chorus < 0) {
+        alignment = 'resistance'
+      }
+    }
+    recordChoiceBehavior(decisionMs, alignment)
+
     rawMakeChoice(choiceId)
-  }, [rawMakeChoice])
+  }, [rawMakeChoice, choices, currentScene.pressure])
 
   const currentScene = getCurrentScene(gameState)
 
@@ -74,12 +96,18 @@ function App() {
   const typingDelay = useMemo(() => {
     const base = resolveTypingDelay(currentScene, gameState)
     // Apply user's textSpeed setting
+    let adjusted: number
     switch (settings.textSpeed) {
-      case 'instant': return 0
-      case 'fast': return Math.round(base * 0.5)
-      case 'slow': return Math.round(base * 1.5)
-      default: return base
+      case 'instant': adjusted = 0; break
+      case 'fast': adjusted = Math.round(base * 0.5); break
+      case 'slow': adjusted = Math.round(base * 1.5); break
+      default: adjusted = base
     }
+    // Commune intelligence: adapt pacing to player reading behavior
+    if (adjusted > 0) {
+      adjusted = Math.round(adjusted * adaptiveTextSpeedMultiplier())
+    }
+    return adjusted
   }, [currentScene, gameState, settings.textSpeed])
   const effects = useMemo(() => resolveVisualEffects(currentScene, gameState), [currentScene, gameState])
   const stress = useMemo(() => {
@@ -100,23 +128,21 @@ function App() {
   const sceneMode = currentScene.mode ?? 'narrative'
   const particlePreset = getParticlePreset(currentScene.background)
 
-  // Detect day changes for chapter cards
+  // Detect endings and day changes — endings take priority
   useEffect(() => {
     if (phase !== 'playing') return
+
+    const id = currentScene.id
+    if (id === 'ending_fire' || id === 'ending_walk' || id === 'ending_sacrifice') {
+      setPhase('ending')
+      return
+    }
+
     if (currentScene.day !== lastDay) {
       setPendingDay(currentScene.day)
       setPhase('chapter_card')
     }
-  }, [currentScene.day, lastDay, phase])
-
-  // Check for ending scenes
-  useEffect(() => {
-    if (phase !== 'playing') return
-    const id = currentScene.id
-    if (id === 'ending_fire' || id === 'ending_walk' || id === 'ending_sacrifice') {
-      setPhase('ending')
-    }
-  }, [currentScene.id, phase])
+  }, [currentScene.id, currentScene.day, lastDay, phase])
 
   const handleChapterComplete = useCallback(() => {
     if (pendingDay !== null) setLastDay(pendingDay)
@@ -160,11 +186,18 @@ function App() {
     }
   }, [currentScene.id, phase])
 
-  // Settings keyboard shortcut (Escape)
+  // Keyboard shortcuts: Escape = settings, Tab = clue journal
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && phase === 'playing') {
+      if (phase !== 'playing') return
+      if (e.key === 'Escape') {
         setSettingsOpen((prev) => !prev)
+        setJournalOpen(false)
+      }
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        setJournalOpen((prev) => !prev)
+        setSettingsOpen(false)
       }
     }
     window.addEventListener('keydown', handleKey)
@@ -212,6 +245,41 @@ function App() {
     }
   }, [choices.length, phase, currentScene.id])
 
+  // Breath Sync: activate during gameplay, detect hold-space for breathing
+  useEffect(() => {
+    if (phase !== 'playing') {
+      stopBreathSync()
+      return
+    }
+    startBreathSync()
+
+    let isBreathing = false
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Space for breathing (only when choices aren't visible — don't interfere with selection)
+      if (e.key === ' ' && !e.repeat && !isBreathing) {
+        isBreathing = true
+        breathIn()
+      }
+    }
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === ' ' && isBreathing) {
+        isBreathing = false
+        breathOut()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+
+    return () => {
+      stopBreathSync()
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [phase])
+
   return (
     <main className="app-shell">
       {/* Ambient systems */}
@@ -232,19 +300,35 @@ function App() {
         enabled={phase === 'playing'}
       />
 
-      {/* Settings gear */}
+      {/* HUD buttons */}
       {phase === 'playing' && (
-        <button
-          type="button"
-          className="app-settings-btn"
-          onClick={() => setSettingsOpen(true)}
-          aria-label="Settings"
-        >
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
-          </svg>
-        </button>
+        <div className="app-hud">
+          {gameState.clues.length > 0 && (
+            <button
+              type="button"
+              className="app-hud__btn"
+              onClick={() => setJournalOpen(true)}
+              aria-label="Evidence journal"
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                <path d="M8 7h8M8 11h6" />
+              </svg>
+            </button>
+          )}
+          <button
+            type="button"
+            className="app-hud__btn"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Settings"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+            </svg>
+          </button>
+        </div>
       )}
 
       <SettingsOverlay
@@ -252,6 +336,13 @@ function App() {
         settings={settings}
         onClose={() => setSettingsOpen(false)}
         onChange={handleSettingsChange}
+      />
+
+      <ClueJournal
+        clues={gameState.clues}
+        chorusLevel={gameState.chorusLevel}
+        open={journalOpen}
+        onClose={() => setJournalOpen(false)}
       />
 
       {/* Main content phases */}

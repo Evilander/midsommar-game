@@ -3,6 +3,7 @@
 import { AnimatePresence, cubicBezier, motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { adaptiveTimerMultiplier } from '../engine/commune-intelligence'
 import { getPreviousChoiceId } from '../engine/ghost'
 import type { Choice, PressureConfig } from '../engine/types'
 import { effectiveTimerMs, pulseToBPM } from '../engine/stress'
@@ -69,7 +70,8 @@ export function DeadlineChoicePanel({
 
     if (!pressure || choices.length === 0) return
 
-    const duration = effectiveTimerMs(pressure.timerMs, pulse, pressure.timerShrinkWithPulse ?? false)
+    const adaptedTimerMs = Math.round(pressure.timerMs * adaptiveTimerMultiplier())
+    const duration = effectiveTimerMs(adaptedTimerMs, pulse, pressure.timerShrinkWithPulse ?? false)
     durationRef.current = duration
     startRef.current = performance.now()
 

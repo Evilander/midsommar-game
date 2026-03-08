@@ -31,6 +31,10 @@ export function evaluateCondition(condition: VariantCondition, state: GameState)
       return (state.flags[condition.flag] ?? false) === condition.value
     case 'relationship':
       return inRange(state.relationships[condition.target], condition.min, condition.max)
+    default: {
+      const _exhaustiveCheck: never = condition
+      return _exhaustiveCheck
+    }
   }
 }
 

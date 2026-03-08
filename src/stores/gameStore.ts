@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 
+import { recordSceneVisit } from '../engine/completion'
 import { applyChoice, resolveChoices } from '../engine/director'
 import { recordGhostEcho } from '../engine/ghost'
 import { INITIAL_STATE, INITIAL_STRESS, type GameState, type SceneNode } from '../engine/types'
@@ -14,7 +15,7 @@ export const SCENE_REGISTRY = ALL_SCENES.reduce<Record<string, SceneNode>>((regi
   return registry
 }, {})
 
-export function getSceneById(sceneId: string) {
+export function getSceneById(sceneId: string): SceneNode | undefined {
   return SCENE_REGISTRY[sceneId]
 }
 
@@ -155,6 +156,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const nextState = applyChoice(state, choice)
     const nextScene = getSceneById(nextState.scene)
 
+    // Completion tracking
+    if (nextScene) recordSceneVisit(nextScene.id)
+
     set(nextScene ? syncSceneMetadata(nextState, nextScene) : nextState)
   },
 
@@ -170,6 +174,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           ? state
           : { endings: [...state.endings, chapterEnding] }
       }
+
+      recordSceneVisit(nextScene.id)
 
       return {
         day: nextScene.day,

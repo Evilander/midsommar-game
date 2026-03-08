@@ -1,10 +1,12 @@
 import { AnimatePresence, cubicBezier, motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { recordReadingBehavior } from '../engine/commune-intelligence'
 import type { Choice, SceneNode, StressState, VisualEffect } from '../engine/types'
 import { DeadlineChoicePanel } from './DeadlineChoicePanel'
 import { DestabilizedText } from './DestabilizedText'
 import { GhostEcho } from './GhostEcho'
+import { HesitationWhisper } from './HesitationWhisper'
 import { PerceptionCompositor } from './PerceptionCompositor'
 import type { RuntimeBridge } from './runtimeBridge'
 
@@ -111,6 +113,8 @@ export function SceneRenderer({
   const [elapsedMs, setElapsedMs] = useState(0)
   const elapsedRef = useRef(0)
   const autoAdvancedRef = useRef(false)
+  const didFastForwardRef = useRef(false)
+  const readingRecordedRef = useRef(false)
 
   const pauseAfterMs = scene.pauseAfterMs ?? 900
   const typingDurationMs = typingDelay === 0 ? 0 : resolvedText.length * typingDelay
@@ -127,8 +131,14 @@ export function SceneRenderer({
       : typingDurationMs
 
   useEffect(() => {
+    // Record reading behavior from previous scene before resetting
+    if (readingRecordedRef.current === false && elapsedRef.current > 0) {
+      recordReadingBehavior(didFastForwardRef.current)
+    }
     elapsedRef.current = 0
     autoAdvancedRef.current = false
+    didFastForwardRef.current = false
+    readingRecordedRef.current = false
     setElapsedMs(0)
   }, [scene.id, resolvedText, typingDelay, pauseAfterMs])
 
@@ -176,12 +186,19 @@ export function SceneRenderer({
 
   const textComplete = typedCharacters >= resolvedText.length
   const choicesVisible = choices.length > 0 && elapsedMs >= revealChoicesAtMs
+
+  // Record reading completion when text finishes naturally (not from fast-forward)
+  if (textComplete && !readingRecordedRef.current && !didFastForwardRef.current) {
+    readingRecordedRef.current = true
+    recordReadingBehavior(false)
+  }
   const displayedText = resolvedText.slice(0, typedCharacters)
   const transition = getTransition(scene)
   const background = getBackground(scene.background)
 
   const fastForward = useCallback(() => {
     if (!textComplete) {
+      didFastForwardRef.current = true
       elapsedRef.current = typingDurationMs
       setElapsedMs(typingDurationMs)
       return
@@ -295,6 +312,11 @@ export function SceneRenderer({
                 pressure={scene.pressure}
                 pulse={stress?.pulse ?? 0}
                 onChoose={onChoose}
+              />
+
+              <HesitationWhisper
+                choicesVisible={choicesVisible}
+                chorusLevel={chorusLevel}
               />
             </motion.article>
           </AnimatePresence>

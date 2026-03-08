@@ -21,6 +21,12 @@
   --saturation: 1;
   --bloom: 0;
 
+  /* ── Breath Sync — controlled by JS via breath-sync.ts ── */
+  --breath-phase: 0;
+  --breath-wave: 0;
+  --breath-coherence: 0;
+  --breath-active: 0;
+
   /* ── Typography scale ── */
   --copy: clamp(1.1rem, 0.95rem + 0.45vw, 1.45rem);
   --copy-tight: clamp(1rem, 0.92rem + 0.25vw, 1.18rem);
@@ -770,6 +776,42 @@ button:focus-visible {
   50% { filter: brightness(1.06) saturate(1.15); }
 }
 
+/* ═══════════════════════════════════════════════════
+   BREATH SYNC — The game breathes with you
+   ═══════════════════════════════════════════════════ */
+
+/* Backdrop subtly scales with breath (only when actively breathing) */
+.scene-renderer__backdrop {
+  transform: scale(calc(1.02 + var(--breath-wave) * var(--breath-active) * 0.008));
+  transition: transform 0.3s ease-out;
+}
+
+/* Text opacity subtly breathes — words feel alive */
+.scene-renderer__text {
+  opacity: calc(1 - var(--breath-wave) * var(--breath-active) * 0.06);
+}
+
+/* Perception compositor flowers sync to breath */
+.perception-compositor.is-flowers-breathe .perception-compositor__flowers {
+  transform: scale(calc(1 + var(--breath-wave) * var(--breath-active) * 0.04));
+}
+
+/* Vignette pulses with breath — peripheral vision narrows on inhale */
+.perception-compositor__vignette {
+  opacity: calc(var(--vignette) * 0.84 + var(--breath-wave) * var(--breath-active) * 0.08);
+}
+
+/* High coherence reward: the interface glows warm when your breathing is steady */
+.scene-renderer__wash {
+  background-blend-mode: screen;
+  filter: brightness(calc(1 + var(--breath-coherence) * var(--breath-active) * 0.03));
+}
+
+/* Breath indicator — subtle bar that shows inhale/exhale */
+.app-shell::before {
+  opacity: calc(0.5 + var(--breath-wave) * var(--breath-active) * 0.35);
+}
+
 /* ── Reduced motion preference ── */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -1292,9 +1334,33 @@ button:focus-visible {
 }
 
 /* ═══════════════════════════════════════════════════
-   SETTINGS GEAR BUTTON
+   HUD — Settings + Journal buttons
    ═══════════════════════════════════════════════════ */
 
+.app-hud {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 100;
+  display: flex;
+  gap: 0.4rem;
+}
+
+.app-hud__btn {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  opacity: 0.25;
+  cursor: pointer;
+  padding: 0.5rem;
+  transition: opacity 0.3s;
+}
+
+.app-hud__btn:hover {
+  opacity: 0.6;
+}
+
+/* Legacy class kept for compatibility */
 .app-settings-btn {
   position: fixed;
   top: 1rem;
@@ -1675,6 +1741,102 @@ button:focus-visible {
   opacity: 0.5;
 }
 
+/* ── Score section ── */
+
+.journey-summary__ending-type {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.journey-summary__scores {
+  display: grid;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.journey-summary__score-group {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.journey-summary__score-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.journey-summary__score-label {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.journey-summary__score-value {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.journey-summary__bar-fill--score {
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, var(--flower)));
+}
+
+.journey-summary__score-hint {
+  font-size: 0.68rem;
+  font-style: italic;
+  opacity: 0.45;
+  line-height: 1.4;
+}
+
+/* ── The Commune Knows — behavioral profile reveal ── */
+
+.journey-summary__commune-knows {
+  border-top: 1px solid rgba(44, 36, 22, 0.08);
+  padding-top: 1.8rem;
+  margin-top: 1rem;
+}
+
+.journey-summary__commune-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(0.85rem, 0.78rem + 0.2vw, 1rem);
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--blood);
+  opacity: 0.55;
+  margin: 0 0 1rem;
+}
+
+.journey-summary__commune-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.journey-summary__commune-lines li {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: var(--copy-tight);
+  font-style: italic;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.journey-summary__commune-style {
+  margin-top: 1rem;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
 /* ═══════════════════════════════════════════════════
    GHOST ECHO — Memories from previous cycles
    ═══════════════════════════════════════════════════ */
@@ -1800,4 +1962,169 @@ button:focus-visible {
   text-transform: uppercase;
   color: var(--text);
   margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════
+   HESITATION WHISPER — The commune notices indecision
+   ═══════════════════════════════════════════════════ */
+
+.hesitation-whisper {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.hesitation-whisper__text {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: var(--copy-tight);
+  font-style: italic;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 20px rgba(196, 163, 90, 0.12);
+}
+
+/* ═══════════════════════════════════════════════════
+   CLUE JOURNAL — Evidence that degrades
+   ═══════════════════════════════════════════════════ */
+
+.clue-journal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  background: rgba(44, 36, 22, 0.35);
+  backdrop-filter: blur(6px);
+}
+
+.clue-journal__panel {
+  width: min(92vw, 36rem);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid rgba(44, 36, 22, 0.08);
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+}
+
+.clue-journal__header {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.clue-journal__title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(1.1rem, 1rem + 0.3vw, 1.4rem);
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.clue-journal__corrupted-count {
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--blood);
+  opacity: 0.65;
+  letter-spacing: 0.06em;
+}
+
+.clue-journal__close {
+  margin-left: auto;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.4;
+  transition: opacity 0.3s;
+}
+
+.clue-journal__close:hover {
+  opacity: 0.8;
+}
+
+.clue-journal__empty {
+  font-style: italic;
+  opacity: 0.5;
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.clue-journal__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1.2rem;
+}
+
+.clue-journal__tab {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.6rem;
+  cursor: pointer;
+  opacity: 0.45;
+  border-bottom: 1px solid transparent;
+  transition: opacity 0.3s, border-color 0.3s;
+}
+
+.clue-journal__tab:hover {
+  opacity: 0.7;
+}
+
+.clue-journal__tab--active {
+  opacity: 0.85;
+  border-bottom-color: var(--accent);
+}
+
+.clue-journal__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.clue-journal__entry {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid rgba(44, 36, 22, 0.05);
+}
+
+.clue-journal__entry--corrupted {
+  position: relative;
+}
+
+.clue-journal__entry-subject {
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.45;
+}
+
+.clue-journal__entry-text {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: var(--copy-tight);
+  line-height: 1.55;
+}
+
+.clue-journal__entry-text--corrupted {
+  font-style: italic;
+  color: var(--blood);
+  opacity: 0.7;
+  text-decoration: line-through;
+  text-decoration-color: rgba(139, 37, 0, 0.2);
+}
+
+.clue-journal__entry-altered {
+  font-size: 0.62rem;
+  font-style: italic;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--blood);
+  opacity: 0.4;
 }
