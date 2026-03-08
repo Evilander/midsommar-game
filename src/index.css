@@ -1,0 +1,1803 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&display=swap');
+
+:root {
+  /* ── Midsommar palette: pastel dread → Technicolor fairy tale ── */
+  --bg: #fefaf3;
+  --bg-warm: #fdf6e8;
+  --text: #2c2416;
+  --accent: #c4a35a;
+  --accent-bright: #d4b44a;
+  --blood: #8b2500;
+  --blood-bright: #b83200;
+  --flower: #e8c4c4;
+  --flower-vivid: #e09898;
+  --green-harga: #4a6741;
+  --green-meadow: #7a9e6e;
+  --sky: #d4e5f7;
+  --shadow: rgba(44, 36, 22, 0.11);
+  --surface: rgba(254, 250, 243, 0.46);
+
+  /* ── Progressive saturation — controlled by JS via data-day ── */
+  --saturation: 1;
+  --bloom: 0;
+
+  /* ── Typography scale ── */
+  --copy: clamp(1.1rem, 0.95rem + 0.45vw, 1.45rem);
+  --copy-tight: clamp(1rem, 0.92rem + 0.25vw, 1.18rem);
+  --title: clamp(4rem, 1.4rem + 6vw, 8.5rem);
+  --chapter: clamp(0.78rem, 0.68rem + 0.4vw, 1rem);
+  --transition-slow: 1400ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-synthesis: none;
+  line-height: 1.65;
+  font-weight: 400;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Progressive color saturation by day (the "crayola section") ── */
+[data-day="1"] { --saturation: 0.92; --bloom: 0; }
+[data-day="2"] { --saturation: 0.96; --bloom: 0.02; }
+[data-day="3"] { --saturation: 1.0;  --bloom: 0.04; }
+[data-day="4"] { --saturation: 1.06; --bloom: 0.06; }
+[data-day="5"] { --saturation: 1.12; --bloom: 0.08; }
+[data-day="6"] { --saturation: 1.2;  --bloom: 0.12; }
+[data-day="7"] { --saturation: 1.3;  --bloom: 0.16; }
+[data-day="8"] { --saturation: 1.4;  --bloom: 0.2; }
+[data-day="9"] { --saturation: 1.5;  --bloom: 0.25; }
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-width: 320px;
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  background: var(--bg);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, white);
+  outline-offset: 5px;
+}
+
+.app-shell,
+.app-stage,
+.title-screen,
+.scene-renderer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.app-shell {
+  overflow: hidden;
+  background: var(--bg);
+  /* Progressive saturation — the world gets more vivid as the story deepens */
+  filter: saturate(var(--saturation, 1));
+  transition: filter 2s ease;
+}
+
+/* Cinematic top light wash + progressive bloom */
+.app-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 300;
+  background:
+    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, calc(0.5 + var(--bloom, 0) * 2)), transparent calc(35% + var(--bloom, 0) * 15%)),
+    linear-gradient(180deg, rgba(255, 255, 255, calc(0.2 + var(--bloom, 0))), transparent 30%);
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+  transition: background 3s ease;
+}
+
+/* Film grain texture — barely visible, adds texture depth */
+.app-shell::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grainShift 0.5s steps(2) infinite;
+}
+
+@keyframes grainShift {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-2%, -1%); }
+  50% { transform: translate(1%, 2%); }
+  75% { transform: translate(-1%, -2%); }
+}
+
+.title-screen {
+  display: grid;
+  place-items: center;
+  padding: clamp(2rem, 4vw, 4.5rem);
+  background:
+    radial-gradient(circle at 50% 20%, rgba(255, 223, 182, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84) 0%, rgba(254, 250, 243, 1) 100%);
+}
+
+.title-screen__grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.32;
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(196, 163, 90, 0.08), transparent 18%),
+    radial-gradient(circle at 80% 25%, rgba(232, 196, 196, 0.12), transparent 16%),
+    radial-gradient(circle at 50% 80%, rgba(212, 229, 247, 0.12), transparent 22%);
+  filter: blur(18px);
+}
+
+.title-screen__content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 2.2rem;
+  justify-items: center;
+  text-align: center;
+}
+
+.title-screen__title {
+  margin: 0;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: var(--title);
+  line-height: 0.88;
+  font-weight: 300;
+  letter-spacing: 0.38em;
+  text-indent: 0.38em;
+  text-transform: uppercase;
+  /* Midsommar title card: geometric, wide, slightly suffocating */
+  color: var(--text);
+  text-shadow:
+    0 0 80px rgba(196, 163, 90, 0.08),
+    0 2px 0 rgba(254, 250, 243, 0.3);
+}
+
+.title-screen__hold-wrap {
+  position: relative;
+  width: min(90vw, 33rem);
+  padding-top: 0.8rem;
+}
+
+.title-screen__breath-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 13rem;
+  cursor: pointer;
+  user-select: none;
+  isolation: isolate;
+}
+
+.title-screen__breath-copy {
+  position: relative;
+  z-index: 2;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(1.05rem, 0.92rem + 0.42vw, 1.45rem);
+  letter-spacing: 0.34em;
+}
+
+.title-screen__progress {
+  position: absolute;
+  inset: auto 50% 1.4rem;
+  width: min(40vw, 11rem);
+  height: 1px;
+  background: rgba(44, 36, 22, 0.14);
+  transform: translateX(-50%);
+}
+
+.title-screen__progress::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  transform: scaleX(var(--hold-progress, 0));
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+
+.title-screen__flowers {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: min(56vw, 24rem);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+}
+
+.title-screen__flower {
+  position: absolute;
+  color: color-mix(in srgb, var(--flower) 74%, white);
+  filter: drop-shadow(0 12px 20px rgba(196, 163, 90, 0.08));
+  animation: titleBreath 6s ease-in-out infinite;
+}
+
+.title-screen__flower--a {
+  inset: 0 auto auto 38%;
+  width: 7rem;
+}
+
+.title-screen__flower--b {
+  inset: 30% 4% auto auto;
+  width: 5rem;
+  animation-delay: -1.4s;
+}
+
+.title-screen__flower--c {
+  inset: auto auto 12% 8%;
+  width: 5.6rem;
+  animation-delay: -2.1s;
+}
+
+.title-screen__flower--d {
+  inset: auto 10% 3% auto;
+  width: 4.4rem;
+  animation-delay: -3.3s;
+}
+
+.title-screen__breath-button.is-holding .title-screen__flower {
+  animation-duration: 3.8s;
+}
+
+.scene-renderer {
+  overflow: hidden;
+  color: var(--text);
+}
+
+.scene-renderer__backdrop,
+.scene-renderer__wash {
+  position: absolute;
+  inset: 0;
+}
+
+.scene-renderer__backdrop {
+  background-size: cover;
+  transform: scale(1.02);
+}
+
+.scene-renderer__wash {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, calc(0.3 + var(--bloom, 0) * 0.8)), transparent calc(30% + var(--bloom, 0) * 10%)),
+    linear-gradient(180deg, rgba(254, 250, 243, 0.16) 0%, rgba(254, 250, 243, calc(0.35 + var(--bloom, 0) * 0.5)) 100%);
+  backdrop-filter: saturate(calc(1.02 + var(--bloom, 0) * 0.4));
+  transition: backdrop-filter 2s ease;
+}
+
+.scene-renderer__frame {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: clamp(1.5rem, 3vw, 3rem);
+}
+
+.perception-compositor {
+  position: relative;
+  width: min(100%, 72rem);
+  min-height: 100%;
+}
+
+.perception-compositor__overlay,
+.perception-compositor__content {
+  position: absolute;
+  inset: 0;
+}
+
+.perception-compositor__content {
+  z-index: 2;
+}
+
+.perception-compositor__sun,
+.perception-compositor__vignette,
+.perception-compositor__color-wash,
+.perception-compositor__face-linger {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.perception-compositor__sun {
+  opacity: calc(var(--sun-pulse) * 0.72);
+  background: radial-gradient(circle at 50% 12%, rgba(255, 214, 127, 0.6), transparent 52%);
+}
+
+.perception-compositor__vignette {
+  opacity: calc(var(--vignette) * 0.84);
+  background: radial-gradient(circle, transparent 54%, rgba(44, 36, 22, 0.18) 100%);
+}
+
+.perception-compositor__color-wash {
+  opacity: calc(var(--color-shift) * 0.24);
+  backdrop-filter: hue-rotate(calc(var(--color-shift) * 22deg)) saturate(calc(1 + var(--color-shift) * 0.35));
+}
+
+.perception-compositor__face-linger {
+  opacity: 0;
+  background:
+    radial-gradient(circle at 52% 30%, rgba(255, 255, 255, 0.08), transparent 20%),
+    radial-gradient(circle at 47% 38%, rgba(44, 36, 22, 0.07), transparent 12%);
+}
+
+.perception-compositor__flowers,
+.perception-compositor__vine {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.perception-compositor__flowers {
+  display: flex;
+  gap: clamp(1rem, 1vw, 1.5rem);
+  color: color-mix(in srgb, var(--flower) 84%, white);
+}
+
+.perception-compositor__flowers--top {
+  top: clamp(0.5rem, 2vw, 1.8rem);
+  right: clamp(0.4rem, 2vw, 1.6rem);
+}
+
+.perception-compositor__flowers--bottom {
+  bottom: clamp(0.8rem, 2vw, 1.6rem);
+  left: clamp(0.4rem, 2vw, 1.6rem);
+}
+
+.perception-compositor__flower {
+  width: clamp(3.8rem, 6vw, 6rem);
+}
+
+.perception-compositor__flower--small {
+  width: clamp(2.5rem, 4vw, 4rem);
+  margin-top: 1.6rem;
+}
+
+.perception-compositor__flower--tiny {
+  width: clamp(2rem, 3.5vw, 3.1rem);
+  margin-top: 0.6rem;
+}
+
+.perception-compositor__vine {
+  top: 0;
+  height: 100%;
+  width: min(18vw, 12rem);
+  color: color-mix(in srgb, var(--accent) 42%, var(--flower));
+}
+
+.perception-compositor__vine--left {
+  left: -1rem;
+}
+
+.perception-compositor__vine--right {
+  right: -1rem;
+  transform: scaleX(-1);
+}
+
+.perception-compositor.is-flowers-breathe .perception-compositor__flowers {
+  opacity: calc(var(--flowers-breathe) * 0.92);
+  animation: titleBreath calc(8s - var(--flowers-breathe) * 3s) ease-in-out infinite;
+}
+
+.perception-compositor.is-sun-pulse .perception-compositor__sun {
+  animation: sunPulse calc(14s - var(--sun-pulse) * 5s) ease-in-out infinite;
+}
+
+.perception-compositor.is-border-bloom .perception-compositor__vine {
+  opacity: calc(var(--border-bloom) * 0.72);
+  animation: borderGrow 2.6s ease-out both;
+}
+
+.perception-compositor.is-chorus-sync .perception-compositor__content {
+  animation: chorusSync calc(18s - var(--chorus-sync) * 7s) ease-in-out infinite;
+}
+
+.perception-compositor.is-text-waver .perception-compositor__content {
+  animation: textWaver calc(11s - var(--text-waver) * 3s) ease-in-out infinite;
+}
+
+.perception-compositor.is-face-linger .perception-compositor__face-linger {
+  opacity: calc(var(--face-linger) * 0.22);
+}
+
+.scene-renderer__scene {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  min-height: 100%;
+  padding: clamp(3rem, 6vw, 5rem) clamp(1rem, 2vw, 2rem);
+}
+
+.scene-renderer__text-shell {
+  display: grid;
+  gap: 0.55rem;
+  width: min(100%, 60rem);
+  text-align: left;
+  cursor: pointer;
+}
+
+.scene-renderer__kicker {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: var(--chapter);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  opacity: 0.56;
+}
+
+.scene-renderer__chapter {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(1rem, 0.86rem + 0.44vw, 1.35rem);
+  font-style: italic;
+  opacity: 0.74;
+  text-transform: capitalize;
+}
+
+.scene-renderer__text {
+  display: inline;
+  max-width: 56ch;
+  font-size: var(--copy);
+  line-height: 1.82;
+  letter-spacing: 0.015em;
+  word-spacing: 0.04em;
+  white-space: pre-line;
+  text-wrap: pretty;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.24);
+  font-feature-settings: 'liga' 1, 'kern' 1;
+}
+
+.scene-renderer__cursor {
+  display: inline-block;
+  width: 0.55ch;
+  height: 0.95em;
+  margin-left: 0.1ch;
+  vertical-align: -0.08em;
+  background: color-mix(in srgb, var(--accent) 74%, white);
+  animation: cursorBlink 1s step-end infinite;
+}
+
+.choice-panel {
+  display: grid;
+  gap: 0.85rem;
+  width: min(100%, 40rem);
+  margin-top: clamp(2rem, 5vw, 3.5rem);
+}
+
+.choice-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.35rem 0.8rem 0.5rem 0;
+  cursor: pointer;
+  opacity: 0.72;
+  transition:
+    color 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    text-shadow 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.choice-button:hover,
+.choice-button:focus-visible {
+  opacity: 1;
+}
+
+.choice-button__label {
+  position: relative;
+  z-index: 2;
+  font-size: var(--copy-tight);
+  font-style: italic;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  text-wrap: pretty;
+}
+
+.choice-button__motif {
+  position: absolute;
+  inset: auto auto -0.35rem -0.6rem;
+  width: calc(100% + 1.2rem);
+  color: color-mix(in srgb, var(--flower) 72%, var(--accent));
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 420ms ease, transform 420ms ease;
+}
+
+.choice-button__motif svg {
+  display: block;
+  width: 100%;
+  height: 1.75rem;
+}
+
+.choice-button:hover,
+.choice-button:focus-visible {
+  color: color-mix(in srgb, var(--text) 86%, var(--accent));
+}
+
+.choice-button:hover .choice-button__motif,
+.choice-button:focus-visible .choice-button__motif {
+  opacity: 0.58;
+  transform: translateY(0);
+}
+
+.choice-button--chorus {
+  text-shadow: 0 0 18px rgba(196, 163, 90, 0.22);
+}
+
+.choice-button--chorus:hover,
+.choice-button--chorus:focus-visible {
+  text-shadow:
+    0 0 22px rgba(196, 163, 90, 0.32),
+    0 0 44px rgba(255, 235, 188, 0.22);
+}
+
+/* ── Chorus Colonization — the commune's preferred choices ── */
+
+/* Chorus 2+: commune choices warm up */
+[data-chorus="2"] .choice-button--commune,
+[data-chorus="3"] .choice-button--commune,
+[data-chorus="4"] .choice-button--commune,
+[data-chorus="5"] .choice-button--commune {
+  text-shadow: 0 0 16px rgba(196, 163, 90, 0.22);
+  opacity: 0.82;
+}
+
+/* Chorus 3+: resistance choices cool down */
+[data-chorus="3"] .choice-button--resistance,
+[data-chorus="4"] .choice-button--resistance,
+[data-chorus="5"] .choice-button--resistance {
+  opacity: 0.48;
+  filter: saturate(0.65) brightness(0.95);
+  transition: opacity 0.8s ease, filter 0.8s ease, transform 0.8s ease;
+}
+
+/* Chorus 4+: commune choices pulse and grow */
+[data-chorus="4"] .choice-button--commune,
+[data-chorus="5"] .choice-button--commune {
+  animation: communePulse 3s ease-in-out infinite;
+  transform: scale(1.02);
+  opacity: 0.9;
+}
+
+[data-chorus="4"] .choice-button--resistance,
+[data-chorus="5"] .choice-button--resistance {
+  opacity: 0.36;
+  transform: scale(0.96);
+  filter: saturate(0.5) brightness(0.88);
+}
+
+/* Chorus 4+: hover manipulation — commune feels magnetic, resistance feels slippery */
+[data-chorus="4"] .choice-button--commune:hover,
+[data-chorus="5"] .choice-button--commune:hover {
+  transform: scale(1.06);
+  opacity: 1;
+  transition: transform 0.15s ease-out, opacity 0.2s;
+}
+
+[data-chorus="4"] .choice-button--resistance:hover,
+[data-chorus="5"] .choice-button--resistance:hover {
+  transform: scale(0.97);
+  opacity: 0.42;
+  transition: transform 0.6s ease-in, opacity 0.6s;
+}
+
+/* Chorus 5: full colonization — commune choice is undeniable, hit area expands */
+[data-chorus="5"] .choice-button--commune {
+  animation: communePulse 2s ease-in-out infinite;
+  text-shadow:
+    0 0 22px rgba(196, 163, 90, 0.35),
+    0 0 44px rgba(255, 235, 188, 0.15);
+  transform: scale(1.04);
+  opacity: 1;
+  padding: 0.6rem 1.2rem 0.7rem 0;
+}
+
+[data-chorus="5"] .choice-button--resistance {
+  opacity: 0.26;
+  transform: scale(0.92);
+  filter: saturate(0.3) brightness(0.85) blur(0.4px);
+  padding: 0.2rem 0.4rem 0.25rem 0;
+}
+
+@keyframes communePulse {
+  0%, 100% {
+    text-shadow: 0 0 16px rgba(196, 163, 90, 0.22);
+  }
+  50% {
+    text-shadow:
+      0 0 24px rgba(196, 163, 90, 0.4),
+      0 0 48px rgba(255, 235, 188, 0.12);
+  }
+}
+
+/* ── Ghost Memory — echoes from previous cycles ── */
+
+.choice-button--ghost {
+  position: relative;
+}
+
+.choice-button--ghost::after {
+  content: '\00B7\00B7\00B7';
+  position: absolute;
+  right: -1.8em;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.7em;
+  color: var(--accent);
+  opacity: 0;
+  animation: ghostMark 4s ease-in-out forwards;
+  pointer-events: none;
+}
+
+@keyframes ghostMark {
+  0% { opacity: 0; }
+  15% { opacity: 0.3; }
+  70% { opacity: 0.2; }
+  100% { opacity: 0; }
+}
+
+@keyframes cursorBlink {
+  0%,
+  48% {
+    opacity: 1;
+  }
+
+  49%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes titleBreath {
+  0%,
+  100% {
+    transform: scale(0.98);
+    opacity: 0.5;
+  }
+
+  50% {
+    transform: scale(1.06);
+    opacity: 0.92;
+  }
+}
+
+@keyframes sunPulse {
+  0%,
+  100% {
+    transform: scale(0.985);
+    opacity: calc(var(--sun-pulse) * 0.5);
+  }
+
+  50% {
+    transform: scale(1.03);
+    opacity: calc(var(--sun-pulse) * 0.95);
+  }
+}
+
+@keyframes chorusSync {
+  0%,
+  100% {
+    transform: translateX(calc(var(--chorus-sync) * -0.1rem));
+  }
+
+  50% {
+    transform: translateX(calc(var(--chorus-sync) * 0.22rem));
+  }
+}
+
+@keyframes textWaver {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+
+  25% {
+    transform: translate3d(calc(var(--text-waver) * 0.15rem), 0, 0) rotate(calc(var(--text-waver) * 0.2deg));
+  }
+
+  75% {
+    transform: translate3d(calc(var(--text-waver) * -0.18rem), 0, 0) rotate(calc(var(--text-waver) * -0.2deg));
+  }
+}
+
+@keyframes borderGrow {
+  from {
+    clip-path: inset(0 100% 0 0);
+    filter: blur(6px);
+  }
+
+  to {
+    clip-path: inset(0 0 0 0);
+    filter: blur(0);
+  }
+}
+
+/* ── Night scene atmosphere ── */
+.scene-renderer.is-night {
+  --bg-override: #1a1612;
+  color: rgba(254, 250, 243, 0.85);
+}
+
+.scene-renderer.is-night .scene-renderer__wash {
+  background:
+    radial-gradient(circle at 50% 30%, rgba(196, 163, 90, 0.06), transparent 40%),
+    linear-gradient(180deg, rgba(26, 22, 18, 0.3) 0%, rgba(26, 22, 18, 0.6) 100%);
+}
+
+/* ── Dream scene atmosphere ── */
+.scene-renderer.is-dream {
+  animation: dreamDrift 12s ease-in-out infinite;
+}
+
+@keyframes dreamDrift {
+  0%, 100% { filter: blur(0px) brightness(1); }
+  50% { filter: blur(0.5px) brightness(1.04); }
+}
+
+/* ── Ritual scene glow ── */
+.scene-renderer.is-ritual .scene-renderer__backdrop {
+  animation: ritualPulse 6s ease-in-out infinite;
+}
+
+@keyframes ritualPulse {
+  0%, 100% { filter: brightness(1) saturate(1); }
+  50% { filter: brightness(1.06) saturate(1.15); }
+}
+
+/* ── Reduced motion preference ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .app-shell::after {
+    display: none;
+  }
+}
+
+/* ── Mobile — intimate reading distance ── */
+@media (max-width: 720px) {
+  .title-screen__title {
+    letter-spacing: 0.18em;
+    text-indent: 0.18em;
+  }
+
+  .scene-renderer__scene {
+    padding-inline: 0.5rem;
+    padding-block: 2rem;
+  }
+
+  .perception-compositor__vine {
+    width: 4rem;
+    opacity: 0.3;
+  }
+
+  .perception-compositor__flowers--top {
+    top: 0;
+  }
+
+  .perception-compositor__flowers {
+    gap: 0.5rem;
+  }
+
+  .scene-renderer__text {
+    max-width: 100%;
+    line-height: 1.68;
+    font-size: clamp(1rem, 0.9rem + 0.5vw, 1.3rem);
+  }
+
+  .choice-button {
+    padding: 0.5rem 0.8rem 0.6rem 0;
+  }
+
+  .choice-button__label {
+    font-size: clamp(0.95rem, 0.85rem + 0.4vw, 1.1rem);
+  }
+
+  .chapter-card__title {
+    letter-spacing: 0.08em;
+    text-indent: 0.08em;
+  }
+
+  .ending-screen__line {
+    font-size: clamp(1.1rem, 2.5vw, 1.6rem);
+  }
+
+  .journey-summary__content {
+    padding: 2rem 1rem;
+  }
+
+  .settings-overlay__panel {
+    padding: 1.5rem;
+    width: 95%;
+  }
+}
+
+/* ── Tablet sweet spot ── */
+@media (min-width: 721px) and (max-width: 1024px) {
+  .scene-renderer__text {
+    max-width: 50ch;
+  }
+
+  .title-screen__title {
+    letter-spacing: 0.28em;
+    text-indent: 0.28em;
+  }
+}
+
+/* ── Tall screens — more breathing room ── */
+@media (min-height: 900px) {
+  .scene-renderer__scene {
+    padding-block: clamp(4rem, 8vh, 6rem);
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   MAY QUEEN DANCE — Rhythm Ritual
+   ═══════════════════════════════════════════════════ */
+
+.dance-intro,
+.dance-between,
+.dance-crowned {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 2rem;
+  text-align: center;
+  color: var(--text);
+}
+
+.dance-intro__title,
+.dance-crowned__title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(2rem, 1rem + 4vw, 4rem);
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.dance-intro__subtitle,
+.dance-crowned__text,
+.dance-between__text {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: var(--copy);
+  max-width: 36rem;
+  line-height: 1.7;
+  opacity: 0.85;
+}
+
+.dance-intro__controls {
+  display: flex;
+  gap: 2rem;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: var(--copy-tight);
+  opacity: 0.6;
+}
+
+.dance-intro__warning {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: var(--copy-tight);
+  font-style: italic;
+  opacity: 0.5;
+  margin-top: 1rem;
+}
+
+.dance-intro__start,
+.dance-between__continue,
+.dance-crowned__continue {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: var(--copy);
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--text);
+  padding: 0.7em 2.5em;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: all 0.4s ease;
+}
+
+.dance-intro__start:hover,
+.dance-between__continue:hover,
+.dance-crowned__continue:hover {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.dance-crowned__stats,
+.dance-between__stats {
+  font-size: var(--copy-tight);
+  opacity: 0.5;
+}
+
+.dance-arena {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  overflow: hidden;
+}
+
+.dance-arena__bloom {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(244, 222, 168, 0.6), transparent 70%);
+  pointer-events: none;
+  transition: opacity 2s ease;
+}
+
+.dance-arena__prompt {
+  position: absolute;
+  top: 15%;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: var(--copy);
+  font-style: italic;
+  color: var(--text);
+  text-align: center;
+  max-width: 30rem;
+}
+
+.dance-arena__help {
+  position: absolute;
+  bottom: 25%;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: var(--copy-tight);
+  color: var(--accent);
+  font-style: italic;
+}
+
+.dance-arena__track {
+  position: relative;
+  width: 80%;
+  max-width: 600px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+}
+
+.dance-arena__hitline {
+  position: absolute;
+  left: 25%;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent);
+  opacity: 0.6;
+  box-shadow: 0 0 12px var(--accent);
+}
+
+.dance-beat {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  font-size: 1.2rem;
+  color: var(--accent);
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.dance-beat--step { border-color: var(--accent); color: var(--accent); }
+.dance-beat--breathe_in { border-color: var(--sky); color: var(--sky); border-style: dashed; }
+.dance-beat--breathe_out { border-color: var(--flower); color: var(--flower); }
+.dance-beat--clap { border-color: var(--accent); color: var(--accent); border-width: 3px; }
+
+.dance-beat--hit {
+  border-color: #a8d5a0;
+  color: #a8d5a0;
+  background: rgba(168, 213, 160, 0.15);
+}
+
+.dance-beat--helped {
+  border-color: var(--flower);
+  color: var(--flower);
+  opacity: 0.4;
+}
+
+.dance-beat__icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.dance-arena__progress {
+  position: absolute;
+  bottom: 10%;
+  width: 60%;
+  max-width: 400px;
+  height: 3px;
+  background: rgba(44, 36, 22, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.dance-arena__progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.1s linear;
+}
+
+.dance-arena__round {
+  position: absolute;
+  bottom: 6%;
+  display: flex;
+  gap: 8px;
+}
+
+.dance-arena__round-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(44, 36, 22, 0.15);
+  transition: background 0.5s ease;
+}
+
+.dance-arena__round-dot--active {
+  background: var(--accent);
+}
+
+/* ═══════════════════════════════════════════════════
+   DEADLINE CHOICE PANEL — Timed/Pressured Choices
+   ═══════════════════════════════════════════════════ */
+
+.deadline-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 2rem;
+  width: 100%;
+}
+
+.deadline-choice__timer-track {
+  width: 100%;
+  height: 3px;
+  background: rgba(44, 36, 22, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.deadline-choice__timer-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.1s linear, background-color 0.5s ease;
+}
+
+.deadline-choice--urgent .choice-button {
+  animation: timerShake 0.15s ease-in-out infinite alternate;
+}
+
+@keyframes timerShake {
+  from { transform: translateX(-1px); }
+  to { transform: translateX(1px); }
+}
+
+/* High-stress deadline: choices feel more urgent */
+.deadline-choice--urgent .choice-button__label {
+  font-style: normal;
+  font-weight: 500;
+}
+
+.deadline-choice .deadline-choice__timer-fill {
+  background: linear-gradient(90deg, var(--accent), var(--blood));
+}
+
+/* ═══════════════════════════════════════════════════
+   WITNESS OVERLAY — Being Watched
+   ═══════════════════════════════════════════════════ */
+
+@keyframes witnessPulse {
+  from { opacity: var(--witness-base, 0.3); }
+  to { opacity: calc(var(--witness-base, 0.3) * 1.4); }
+}
+
+@keyframes eyeFade {
+  0% { opacity: 0; }
+  30% { opacity: var(--eye-opacity, 0.3); }
+  70% { opacity: var(--eye-opacity, 0.3); }
+  100% { opacity: 0; }
+}
+
+@keyframes screenBreathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.005); }
+}
+
+/* ═══════════════════════════════════════════════════
+   DESTABILIZED TEXT — Commune Colonization
+   ═══════════════════════════════════════════════════ */
+
+.destabilized-text--level1 .destabilized-text__word {
+  animation: textShimmer 4s ease-in-out infinite;
+}
+
+.destabilized-text--level2 .destabilized-text__word {
+  animation: textShimmer 3s ease-in-out infinite;
+}
+
+.destabilized-text__word--shifted {
+  color: var(--accent);
+  transition: color 1.5s ease, opacity 1.5s ease;
+  animation: wordMorph 2s ease forwards !important;
+}
+
+.destabilized-text--level3 .destabilized-text__char {
+  display: inline;
+  animation: charDrift 3s ease-in-out infinite alternate;
+}
+
+@keyframes textShimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.88; }
+}
+
+@keyframes wordMorph {
+  0% { opacity: 0.5; filter: blur(2px); }
+  100% { opacity: 1; filter: blur(0px); }
+}
+
+@keyframes charDrift {
+  0% { opacity: 1; }
+  50% { opacity: 0.85; }
+  100% { opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════════════
+   SETTINGS OVERLAY
+   ═══════════════════════════════════════════════════ */
+
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(44, 36, 22, 0.6);
+  backdrop-filter: blur(6px);
+}
+
+.settings-overlay__panel {
+  background: var(--bg);
+  border: 1px solid rgba(196, 163, 90, 0.3);
+  border-radius: 8px;
+  padding: 2rem 2.5rem;
+  max-width: 380px;
+  width: 90%;
+}
+
+.settings-overlay__title {
+  font-family: inherit;
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1.5rem;
+}
+
+.settings-overlay__group {
+  margin-bottom: 1.2rem;
+}
+
+.settings-overlay__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  margin-bottom: 0.4rem;
+}
+
+.settings-overlay__value {
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-overlay__slider {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.settings-overlay__options {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.settings-overlay__option {
+  flex: 1;
+  padding: 0.4rem 0;
+  border: 1px solid rgba(196, 163, 90, 0.2);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: capitalize;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-overlay__option--active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+.settings-overlay__checkbox {
+  margin-right: 0.5rem;
+  accent-color: var(--accent);
+}
+
+.settings-overlay__close {
+  display: block;
+  width: 100%;
+  margin-top: 1.5rem;
+  padding: 0.6rem;
+  border: 1px solid rgba(196, 163, 90, 0.3);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.settings-overlay__close:hover {
+  background: rgba(196, 163, 90, 0.1);
+}
+
+/* ═══════════════════════════════════════════════════
+   SETTINGS GEAR BUTTON
+   ═══════════════════════════════════════════════════ */
+
+.app-settings-btn {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 100;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  opacity: 0.25;
+  cursor: pointer;
+  padding: 0.5rem;
+  transition: opacity 0.3s;
+}
+
+.app-settings-btn:hover {
+  opacity: 0.6;
+}
+
+/* ═══════════════════════════════════════════════════
+   CHAPTER CARD
+   ═══════════════════════════════════════════════════ */
+
+.chapter-card {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  /* Warm light wash behind chapter cards */
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(255, 223, 182, 0.12), transparent 50%),
+    var(--bg);
+}
+
+.chapter-card__content {
+  text-align: center;
+}
+
+.chapter-card__day {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+.chapter-card__title {
+  font-family: inherit;
+  font-size: clamp(2.5rem, 8vw, 5.5rem);
+  font-weight: 300;
+  letter-spacing: 0.16em;
+  text-indent: 0.16em;
+  text-transform: uppercase;
+  color: var(--text);
+  margin: 0;
+}
+
+.chapter-card__epigraph {
+  font-size: var(--copy-tight);
+  font-style: italic;
+  color: var(--text);
+  opacity: 0.65;
+  margin-top: 1.2rem;
+  max-width: 28ch;
+  margin-inline: auto;
+  line-height: 1.6;
+}
+
+.chapter-card__line {
+  width: 80px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  margin-top: 1.8rem;
+  transform-origin: center;
+}
+
+/* ═══════════════════════════════════════════════════
+   TITLE SCREEN CONTINUE BUTTON
+   ═══════════════════════════════════════════════════ */
+
+.title-screen__continue-btn {
+  display: block;
+  margin: 1.2rem auto 0;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 0.8rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  transition: color 0.3s;
+}
+
+.title-screen__continue-btn:hover {
+  color: var(--accent);
+}
+
+/* ═══════════════════════════════════════════════════
+   PARTICLE LAYER (placeholder until Codex delivers)
+   ═══════════════════════════════════════════════════ */
+
+.particle-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════
+   ENDING SCREEN
+   ═══════════════════════════════════════════════════ */
+
+.ending-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.ending-screen__content {
+  text-align: center;
+  max-width: 560px;
+  padding: 2rem;
+}
+
+.ending-screen__line {
+  font-size: clamp(1.3rem, 3vw, 2rem);
+  font-weight: 300;
+  line-height: 1.7;
+  color: var(--text);
+  margin: 1rem 0;
+  letter-spacing: 0.03em;
+}
+
+/* Fire ending — warm amber glow */
+.ending-screen--fire {
+  background:
+    radial-gradient(ellipse at 50% 60%, rgba(255, 140, 40, 0.15), transparent 60%),
+    radial-gradient(ellipse at 50% 80%, rgba(139, 37, 0, 0.08), transparent 40%),
+    var(--bg);
+}
+
+/* Walk away ending — cold, empty */
+.ending-screen--walk {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(212, 229, 247, 0.12), transparent 50%),
+    var(--bg);
+}
+
+/* Sacrifice ending — blood and flowers */
+.ending-screen--sacrifice {
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(232, 196, 196, 0.2), transparent 45%),
+    radial-gradient(ellipse at 50% 70%, rgba(139, 37, 0, 0.06), transparent 35%),
+    var(--bg);
+}
+
+.ending-screen__continue {
+  position: fixed;
+  bottom: 3rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0.5rem 1.5rem;
+  opacity: 0.4;
+  transition: opacity 0.5s;
+}
+
+.ending-screen__continue:hover {
+  opacity: 0.7;
+}
+
+/* ═══════════════════════════════════════════════════
+   JOURNEY SUMMARY
+   ═══════════════════════════════════════════════════ */
+
+.journey-summary {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  overflow-y: auto;
+}
+
+.journey-summary__content {
+  max-width: 480px;
+  width: 90%;
+  padding: 3rem 0;
+}
+
+.journey-summary__title {
+  font-size: 1.1rem;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.5rem;
+}
+
+.journey-summary__ending {
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  color: var(--text);
+  margin: 0 0 2rem;
+}
+
+.journey-summary__stats {
+  margin-bottom: 2rem;
+  border-top: 1px solid rgba(196, 163, 90, 0.15);
+  border-bottom: 1px solid rgba(196, 163, 90, 0.15);
+  padding: 1rem 0;
+}
+
+.journey-summary__stat-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text);
+  opacity: 0.6;
+  padding: 0.3rem 0;
+}
+
+.journey-summary__perception {
+  margin-bottom: 2rem;
+}
+
+.journey-summary__bar-group {
+  margin-bottom: 1rem;
+}
+
+.journey-summary__bar-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.journey-summary__bar-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text);
+  opacity: 0.5;
+}
+
+.journey-summary__bar-value {
+  font-size: 0.7rem;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.journey-summary__bar-track {
+  height: 3px;
+  background: rgba(44, 36, 22, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.journey-summary__bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.journey-summary__bar-context {
+  display: block;
+  font-size: 0.7rem;
+  font-style: italic;
+  color: var(--text);
+  opacity: 0.35;
+  margin-top: 0.2rem;
+}
+
+.journey-summary__moments {
+  margin-bottom: 2rem;
+}
+
+.journey-summary__moments-title {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.8rem;
+}
+
+.journey-summary__moments-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.journey-summary__moments-list li {
+  font-size: 0.8rem;
+  color: var(--text);
+  padding: 0.3rem 0;
+  border-bottom: 1px solid rgba(196, 163, 90, 0.06);
+}
+
+.journey-summary__actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.journey-summary__btn {
+  padding: 0.6rem 1.5rem;
+  border: 1px solid rgba(196, 163, 90, 0.25);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.journey-summary__btn:hover {
+  background: rgba(196, 163, 90, 0.08);
+}
+
+.journey-summary__btn--primary {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+.journey-summary__btn--primary:hover {
+  background: #b89545;
+}
+
+.journey-summary__achievements {
+  margin-bottom: 2rem;
+}
+
+.journey-summary__achievements-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.journey-summary__achievement {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid rgba(196, 163, 90, 0.08);
+}
+
+.journey-summary__achievement-title {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+
+.journey-summary__achievement-desc {
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--text);
+  opacity: 0.5;
+}
+
+/* ═══════════════════════════════════════════════════
+   GHOST ECHO — Memories from previous cycles
+   ═══════════════════════════════════════════════════ */
+
+.ghost-echo {
+  position: relative;
+  z-index: 3;
+  text-align: center;
+  margin-top: 1.5rem;
+  pointer-events: none;
+}
+
+.ghost-echo__text {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: var(--copy-tight);
+  font-style: italic;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 12px rgba(196, 163, 90, 0.15);
+}
+
+/* ── Ending screen ghost line ── */
+
+.ending-screen__line--ghost {
+  font-style: italic;
+  letter-spacing: 0.06em;
+}
+
+/* ── Title screen ghost whisper ── */
+
+.title-screen__ghost-whisper {
+  display: block;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 0.85rem;
+  font-style: italic;
+  letter-spacing: 0.3em;
+  text-transform: lowercase;
+  color: var(--accent);
+  margin-top: -0.5rem;
+}
+
+/* ═══════════════════════════════════════════════════
+   CREDITS SCREEN
+   ═══════════════════════════════════════════════════ */
+
+.credits {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.credits__flower {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 300px;
+  height: 300px;
+  color: var(--accent);
+  pointer-events: none;
+  animation: titleBreath 8s ease-in-out infinite;
+}
+
+.credits__scroll {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  height: 80vh;
+  overflow: hidden;
+  padding: 0 2rem;
+}
+
+.credits__inner {
+  padding: 40vh 0;
+  text-align: center;
+}
+
+.credits__heading {
+  font-size: clamp(2rem, 6vw, 3.5rem);
+  font-weight: 300;
+  letter-spacing: 0.12em;
+  color: var(--text);
+  margin: 0;
+}
+
+.credits__label {
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0;
+}
+
+.credits__line {
+  font-size: 0.85rem;
+  color: var(--text);
+  margin: 0.3rem 0;
+  line-height: 1.6;
+}
+
+.credits__quote {
+  font-size: 0.9rem;
+  font-style: italic;
+  color: var(--text);
+  margin: 0;
+}
+
+.credits__spacer {
+  height: 2.5rem;
+}
+
+.credits__dismiss {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text);
+  margin: 0;
+}
