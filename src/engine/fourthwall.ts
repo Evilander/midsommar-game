@@ -3,6 +3,7 @@
 // The commune's surveillance extends beyond the narrative.
 
 import type { GameState, SceneNode } from './types'
+import { getPreviousChoiceId } from './ghost'
 
 // ═══════════════════════════════════════════════════
 // TAB TITLE — the first thing you see when you look away
@@ -20,10 +21,16 @@ export function getTabTitle(
   if (phase === 'ending') {
     if (state.flags.entered_temple) return 'She steps inside'
     if (state.flags.dropped_torch) return 'The road is long'
+    if (state.flags.surrendered_to_inaction) return 'Someone else decides'
     return 'The fire catches'
   }
 
   if (!scene) return 'MIDSOMMAR'
+
+  if (scene.id === 'day8_temple_threshold') return 'Do Not Look Away'
+  if (scene.id === 'day8_vigil') return 'The flowers are bruising'
+  if (scene.id === 'day9_threshold') return 'Choose'
+  if (scene.pressure && state.chorusLevel >= 3) return 'Choose Quickly'
 
   // High chorus: the commune speaks through the chrome
   if (state.chorusLevel >= 4) return 'We Are Here'
@@ -40,10 +47,26 @@ export function getTabTitle(
 export function getHiddenTitle(scene: SceneNode | null, state: GameState): string | null {
   if (!scene) return null
 
+  if (scene.id === 'day9_threshold') {
+    const previousChoice = getPreviousChoiceId(scene.id)
+    if (previousChoice === 'light_fire') return 'You already know what happens'
+    if (previousChoice === 'drop_torch') return 'The road is still there'
+    if (previousChoice === 'enter_temple') return 'You stepped inside once before'
+    return 'Do not leave me alone with this'
+  }
+
+  if (scene.id === 'day8_temple_threshold') {
+    return 'The temple stays open without you'
+  }
+
   // Pressured choices — the commune notices you looking away
-  if (scene.pressure) return 'She noticed you left'
+  if (scene.pressure) {
+    if (state.day >= 8) return 'They can hear you hesitating'
+    return 'She noticed you left'
+  }
 
   // High exposure — they are always watching
+  if (state.clues.length >= 5 && state.day >= 7) return 'You know too much to look away'
   if ((scene.stressModifiers?.exposure ?? 0) > 30) return 'They are still watching'
   if (state.perception.belonging > 60) return 'We miss you'
 
@@ -55,6 +78,8 @@ export function getHiddenTitle(scene: SceneNode | null, state: GameState): strin
 
 /** Brief flash when the player returns */
 export function getReturnTitle(state: GameState): string {
+  if (state.flags.surrendered_to_inaction) return 'It was easier not to choose.'
+  if (state.day >= 8 && state.clues.length >= 5) return 'You brought the evidence back with you.'
   if (state.chorusLevel >= 3) return 'You came back. Good.'
   return 'MIDSOMMAR'
 }
@@ -84,9 +109,9 @@ export function isPlayingLate(): boolean {
 export function timeOfDayStressModifier(): number {
   const slot = getTimeSlot()
   switch (slot) {
-    case 'late_night': return 12
-    case 'night': return 8
-    case 'early_morning': return 5
+    case 'late_night': return 16
+    case 'night': return 11
+    case 'early_morning': return 6
     default: return 0
   }
 }

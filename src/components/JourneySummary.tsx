@@ -14,23 +14,31 @@ const EASE_SOFT = cubicBezier(0.22, 1, 0.36, 1)
 
 // Flag → readable moment descriptions
 const FLAG_MOMENTS: Record<string, string> = {
+  // Day 1
   witnessed_attestupa: 'Witnessed the attestupa.',
+  held_during_panic: 'Let them breathe for her.',
+  // Day 2
   drank_tea: 'Drank the mushroom tea.',
   refused_tea: 'Refused the tea.',
+  // Day 3 — investigation
+  asked_about_mark: 'Asked where Mark went.',
+  kept_mark_evidence: 'Kept the evidence hidden.',
+  confronted_christian_mark_evidence: 'Made Christian look at the blood.',
+  warned_josh: 'Warned Josh not to go.',
+  betrayed_josh: 'Told Pelle about Josh\'s plan.',
+  hid_josh_camera_strap: 'Hid the torn camera strap.',
+  confronted_christian_with_camera: 'Forced Christian to see the camera strap.',
+  // Day 5-7
+  refused_to_choose: 'Refused to choose.',
+  // Day 8-9
   surrendered_to_dance: 'Surrendered to the dance.',
   fought_for_crown: 'Fought for the crown.',
   chose_christian: 'Chose Christian as the ninth.',
   spared_christian: 'Spared Christian.',
-  refused_to_choose: 'Refused to choose.',
+  tried_to_leave_alone: 'Tried to leave alone.',
   lit_the_fire: 'Lit the temple.',
   dropped_torch: 'Dropped the torch.',
   entered_temple: 'Walked into the fire.',
-  tried_to_leave_alone: 'Tried to leave alone.',
-  let_them_breathe: 'Let them breathe for her.',
-  fight_the_trip: 'Fought the trip.',
-  confronted_mark: 'Confronted Mark.',
-  explored_ruins: 'Explored the ruins.',
-  found_blood_book: 'Found the blood book.',
 }
 
 // Perception value → contextual label
@@ -117,8 +125,11 @@ export function JourneySummary({
   useEffect(() => {
     recordPlaythroughComplete()
     const fresh = evaluateAchievements(gameState)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- compute achievements on mount
     setNewAchievements(fresh)
+     
     setAllAchievements(getAllAchievements())
+     
     setCompletion(getCompletionStats())
   }, [gameState])
 

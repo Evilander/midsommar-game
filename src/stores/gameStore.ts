@@ -79,15 +79,23 @@ export function deleteSave(): void {
 // ═══════════════════════════════════════════════════
 
 export interface GameSettings {
-  masterVolume: number     // 0-1
+  masterVolume: number          // 0-1
+  soundtrackVolume: number      // 0-1 (Bobby Krlic's score, separate from ambient/heartbeat)
   textSpeed: 'slow' | 'normal' | 'fast' | 'instant'
+  fontSize: 'small' | 'normal' | 'large'
   reduceMotion: boolean
+  enableDistortion: boolean     // text shimmer/distortion/gaslighting effects
+  enableScreenEffects: boolean  // psychedelic overlay, vignette, witness gaze
 }
 
 const DEFAULT_SETTINGS: GameSettings = {
   masterVolume: 0.7,
+  soundtrackVolume: 0.8,
   textSpeed: 'normal',
+  fontSize: 'normal',
   reduceMotion: false,
+  enableDistortion: true,
+  enableScreenEffects: true,
 }
 
 export function loadSettings(): GameSettings {

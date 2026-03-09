@@ -68,7 +68,7 @@ function createParticle(preset: typeof PRESETS[keyof typeof PRESETS], w: number,
   const size = preset.minSize + Math.random() * (preset.maxSize - preset.minSize)
   const maxLife = 300 + Math.random() * 400
 
-  let x = Math.random() * w
+  const x = Math.random() * w
   let y: number
   let vx: number
   let vy: number

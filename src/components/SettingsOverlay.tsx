@@ -21,6 +21,7 @@ export function SettingsOverlay({
   const [local, setLocal] = useState(settings)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync local state when overlay opens
     if (open) setLocal(settings)
   }, [open, settings])
 
@@ -63,7 +64,7 @@ export function SettingsOverlay({
 
             <div className="settings-overlay__group">
               <label className="settings-overlay__label">
-                Volume
+                Master Volume
                 <span className="settings-overlay__value">{Math.round(local.masterVolume * 100)}%</span>
               </label>
               <input
@@ -72,6 +73,21 @@ export function SettingsOverlay({
                 max="100"
                 value={Math.round(local.masterVolume * 100)}
                 onChange={(e) => update({ masterVolume: Number(e.target.value) / 100 })}
+                className="settings-overlay__slider"
+              />
+            </div>
+
+            <div className="settings-overlay__group">
+              <label className="settings-overlay__label">
+                Soundtrack
+                <span className="settings-overlay__value">{Math.round(local.soundtrackVolume * 100)}%</span>
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={Math.round(local.soundtrackVolume * 100)}
+                onChange={(e) => update({ soundtrackVolume: Number(e.target.value) / 100 })}
                 className="settings-overlay__slider"
               />
             </div>
@@ -93,6 +109,24 @@ export function SettingsOverlay({
             </div>
 
             <div className="settings-overlay__group">
+              <label className="settings-overlay__label">Font Size</label>
+              <div className="settings-overlay__options">
+                {(['small', 'normal', 'large'] as const).map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    className={`settings-overlay__option${local.fontSize === size ? ' settings-overlay__option--active' : ''}`}
+                    onClick={() => update({ fontSize: size })}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <h3 className="settings-overlay__section">Accessibility</h3>
+
+            <div className="settings-overlay__group">
               <label className="settings-overlay__label">
                 <input
                   type="checkbox"
@@ -102,6 +136,32 @@ export function SettingsOverlay({
                 />
                 Reduce motion
               </label>
+            </div>
+
+            <div className="settings-overlay__group">
+              <label className="settings-overlay__label">
+                <input
+                  type="checkbox"
+                  checked={local.enableDistortion}
+                  onChange={(e) => update({ enableDistortion: e.target.checked })}
+                  className="settings-overlay__checkbox"
+                />
+                Text distortion effects
+              </label>
+              <span className="settings-overlay__hint">Shimmer, word shifts, and gaslighting text</span>
+            </div>
+
+            <div className="settings-overlay__group">
+              <label className="settings-overlay__label">
+                <input
+                  type="checkbox"
+                  checked={local.enableScreenEffects}
+                  onChange={(e) => update({ enableScreenEffects: e.target.checked })}
+                  className="settings-overlay__checkbox"
+                />
+                Screen effects
+              </label>
+              <span className="settings-overlay__hint">Psychedelic overlays, vignettes, visual distortion</span>
             </div>
 
             <button type="button" className="settings-overlay__close" onClick={onClose}>

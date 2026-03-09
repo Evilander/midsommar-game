@@ -67,6 +67,7 @@ export function DestabilizedText({
   // Parse text into word states
   useEffect(() => {
     const tokens = text.split(/(\s+)/) // preserve whitespace
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync text tokens on prop change
     setWords(
       tokens.map((token) => ({
         original: token,

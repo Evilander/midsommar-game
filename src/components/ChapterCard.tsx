@@ -4,6 +4,8 @@
 import { cubicBezier, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 
+import { playGameSound, preloadGameSounds } from '../engine/game-sounds'
+
 const EASE_RITUAL = cubicBezier(0.16, 1, 0.3, 1)
 
 // Day-specific epigraphs — one line that sets the tone
@@ -33,6 +35,9 @@ export function ChapterCard({
   const [phase, setPhase] = useState<'entering' | 'holding' | 'exiting'>('entering')
 
   useEffect(() => {
+    void preloadGameSounds(['chapter_transition'])
+    void playGameSound('chapter_transition')
+
     const holdTimer = setTimeout(() => setPhase('holding'), 800)
     const exitTimer = setTimeout(() => setPhase('exiting'), 3500)
     const completeTimer = setTimeout(onComplete, 4800)

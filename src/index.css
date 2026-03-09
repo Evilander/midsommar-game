@@ -44,6 +44,7 @@
 }
 
 /* ── Progressive color saturation by day (the "crayola section") ── */
+[data-day="0"] { --saturation: 0.7;  --bloom: 0; }
 [data-day="1"] { --saturation: 0.92; --bloom: 0; }
 [data-day="2"] { --saturation: 0.96; --bloom: 0.02; }
 [data-day="3"] { --saturation: 1.0;  --bloom: 0.04; }
@@ -53,6 +54,390 @@
 [data-day="7"] { --saturation: 1.3;  --bloom: 0.16; }
 [data-day="8"] { --saturation: 1.4;  --bloom: 0.2; }
 [data-day="9"] { --saturation: 1.5;  --bloom: 0.25; }
+
+/* ═══════════════════════════════════════════════════
+   SCREEN DECAY — UI corruption at high chorus levels
+   The game itself is being consumed by the commune.
+   Chorus level set via data-chorus on #root.
+   ═══════════════════════════════════════════════════ */
+
+[data-chorus="0"],
+[data-chorus="1"] {
+  --decay-noise: 0;
+  --decay-hue: 0deg;
+  --decay-blur: 0px;
+  --decay-saturate: 1;
+}
+[data-chorus="2"] {
+  --decay-noise: 0.02;
+  --decay-hue: 2deg;
+  --decay-blur: 0px;
+  --decay-saturate: 1.05;
+}
+[data-chorus="3"] {
+  --decay-noise: 0.05;
+  --decay-hue: 5deg;
+  --decay-blur: 0.3px;
+  --decay-saturate: 1.12;
+}
+[data-chorus="4"] {
+  --decay-noise: 0.1;
+  --decay-hue: 12deg;
+  --decay-blur: 0.6px;
+  --decay-saturate: 1.25;
+}
+[data-chorus="5"] {
+  --decay-noise: 0.18;
+  --decay-hue: 22deg;
+  --decay-blur: 1px;
+  --decay-saturate: 1.45;
+}
+
+/* Apply decay filter to the scene region */
+[data-chorus] .scene-region {
+  filter: hue-rotate(var(--decay-hue)) saturate(var(--decay-saturate)) blur(var(--decay-blur));
+  transition: filter 3s ease-in-out;
+}
+
+/* Text corruption — subtle letter-spacing jitter at high chorus */
+[data-chorus="4"] .scene-text,
+[data-chorus="5"] .scene-text {
+  animation: textCorrupt 8s ease-in-out infinite;
+}
+
+[data-chorus="5"] .scene-text {
+  text-shadow: 0.5px 0 rgba(139, 37, 0, 0.08), -0.5px 0 rgba(74, 103, 65, 0.06);
+}
+
+@keyframes textCorrupt {
+  0%, 100% { letter-spacing: 0; }
+  25% { letter-spacing: 0.02em; }
+  50% { letter-spacing: -0.01em; }
+  75% { letter-spacing: 0.01em; }
+}
+
+/* Choice buttons develop a floral border corruption */
+[data-chorus="3"] .choice-button::after,
+[data-chorus="4"] .choice-button::after,
+[data-chorus="5"] .choice-button::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    calc(var(--decay-hue) + 90deg),
+    transparent 40%,
+    rgba(232, 196, 196, var(--decay-noise)) 60%,
+    rgba(196, 163, 90, var(--decay-noise)) 80%,
+    transparent 100%
+  );
+  pointer-events: none;
+  animation: borderCorrupt 12s ease-in-out infinite;
+  z-index: -1;
+}
+
+@keyframes borderCorrupt {
+  0%, 100% { opacity: 0.3; transform: rotate(0deg); }
+  50% { opacity: 0.8; transform: rotate(1deg); }
+}
+
+/* Scene image bleeds through more at high chorus */
+[data-chorus="4"] .scene-image-layer,
+[data-chorus="5"] .scene-image-layer {
+  opacity: 1 !important;
+  mix-blend-mode: soft-light !important;
+  transition: opacity 4s ease-in-out, mix-blend-mode 2s;
+}
+
+/* Background noise grain overlay at highest chorus */
+[data-chorus="5"] .scene-region::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 999;
+  opacity: var(--decay-noise);
+  animation: grainShift 0.5s steps(4) infinite;
+}
+
+@keyframes grainShift {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-2px, 1px); }
+  50% { transform: translate(1px, -1px); }
+  75% { transform: translate(-1px, 2px); }
+}
+
+/* ═══════════════════════════════════════════════════
+   CHOICE REGRET FLASH — Ghost text of paths not taken
+   ═══════════════════════════════════════════════════ */
+
+.choice-regret-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  overflow: hidden;
+}
+
+.choice-regret-text {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: var(--copy);
+  font-style: italic;
+  color: var(--blood);
+  opacity: 0;
+  white-space: nowrap;
+  max-width: 80vw;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  text-align: center;
+  letter-spacing: 0.05em;
+}
+
+/* ═══════════════════════════════════════════════════
+   DREAD METER — Psychological state readout
+   ═══════════════════════════════════════════════════ */
+
+.dread-meter {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(320px, 60vw);
+  cursor: pointer;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  opacity: 0.6;
+  transition: opacity 0.4s;
+}
+
+.dread-meter:hover {
+  opacity: 1;
+}
+
+.dread-meter__track {
+  width: 100%;
+  height: 3px;
+  background: rgba(44, 36, 22, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.dread-meter__fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: var(--dread-balance, 50%);
+  background: linear-gradient(90deg, #8b9faf 0%, #c4a35a 50%, #e09898 100%);
+  border-radius: 2px;
+  transition: width 2s ease-in-out;
+  animation: dreadPulse var(--dread-pulse-speed, 0s) ease-in-out infinite;
+}
+
+.dread-meter__grief-overlay {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: var(--dread-grief, 0%);
+  background: var(--blood);
+  opacity: 0.3;
+  border-radius: 2px;
+}
+
+@keyframes dreadPulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.dread-meter__label {
+  font-size: 0.55rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--text);
+  opacity: 0.4;
+  font-weight: 500;
+}
+
+.dread-meter__detail {
+  position: fixed;
+  bottom: 3.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(280px, 55vw);
+  background: rgba(44, 36, 22, 0.88);
+  backdrop-filter: blur(12px);
+  border-radius: 6px;
+  border: 1px solid rgba(196, 163, 90, 0.15);
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 101;
+}
+
+.dread-meter__stat {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dread-meter__stat-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(254, 250, 243, 0.5);
+  width: 5.5rem;
+  flex-shrink: 0;
+}
+
+.dread-meter__stat-bar {
+  flex: 1;
+  height: 2px;
+  background: rgba(254, 250, 243, 0.1);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.dread-meter__stat-fill {
+  height: 100%;
+  border-radius: 1px;
+  transition: width 1.5s ease-in-out;
+}
+
+.dread-meter__stat-fill--belonging { background: var(--accent); }
+.dread-meter__stat-fill--autonomy { background: #8b9faf; }
+.dread-meter__stat-fill--grief { background: var(--blood); }
+.dread-meter__stat-fill--chorus { background: var(--flower-vivid); }
+
+.dread-meter__stat-value {
+  font-size: 0.65rem;
+  color: rgba(254, 250, 243, 0.7);
+  width: 2rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dread-meter__stat-value--day {
+  width: auto;
+  color: rgba(254, 250, 243, 0.5);
+}
+
+/* ═══════════════════════════════════════════════════
+   BACKGROUND STRESS PULSE — The viewport breathes with anxiety
+   Applied to body via data-pulse-level attribute
+   ═══════════════════════════════════════════════════ */
+
+[data-pulse-level="low"] body {
+  animation: none;
+}
+
+[data-pulse-level="medium"] body {
+  animation: stressPulse 4s ease-in-out infinite;
+}
+
+[data-pulse-level="high"] body {
+  animation: stressPulse 2s ease-in-out infinite;
+}
+
+[data-pulse-level="critical"] body {
+  animation: stressPulse 1.2s ease-in-out infinite, screenShake 0.3s linear infinite;
+}
+
+@keyframes stressPulse {
+  0%, 100% {
+    box-shadow: inset 0 0 80px rgba(139, 37, 0, 0);
+  }
+  50% {
+    box-shadow: inset 0 0 80px rgba(139, 37, 0, var(--pulse-intensity, 0.03));
+  }
+}
+
+@keyframes screenShake {
+  0% { transform: translate(0); }
+  25% { transform: translate(0.5px, -0.5px); }
+  50% { transform: translate(-0.5px, 0.5px); }
+  75% { transform: translate(0.5px, 0.5px); }
+}
+
+/* ═══════════════════════════════════════════════════
+   ACHIEVEMENT TOAST
+   ═══════════════════════════════════════════════════ */
+
+.achievement-toast {
+  position: fixed;
+  top: 2rem;
+  right: 2rem;
+  width: 340px;
+  height: 100px;
+  display: flex;
+  overflow: hidden;
+  border-radius: 6px;
+  border: 1px solid rgba(196, 163, 90, 0.3);
+  background: rgba(44, 36, 22, 0.92);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(196, 163, 90, 0.1);
+  cursor: pointer;
+  z-index: 10000;
+}
+
+.achievement-toast__frame {
+  position: relative;
+  width: 100px;
+  height: 100%;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.achievement-toast__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.6) contrast(1.1);
+}
+
+.achievement-toast__gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, transparent 40%, rgba(44, 36, 22, 0.92) 100%);
+}
+
+.achievement-toast__content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  gap: 0.25rem;
+}
+
+.achievement-toast__label {
+  font-size: 0.6rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--achievement-accent, var(--accent));
+  font-weight: 600;
+}
+
+.achievement-toast__title {
+  font-size: 1.1rem;
+  color: var(--bg);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.achievement-toast__desc {
+  font-size: 0.78rem;
+  color: rgba(254, 250, 243, 0.55);
+  font-style: italic;
+  line-height: 1.3;
+}
 
 * {
   box-sizing: border-box;
@@ -142,6 +527,68 @@ button:focus-visible {
   75% { transform: translate(-1%, -2%); }
 }
 
+/* ═══════════════════════════════════════════════════
+   CONTENT WARNING
+   ═══════════════════════════════════════════════════ */
+
+.content-warning {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1a1610;
+  z-index: 10;
+}
+
+.content-warning__inner {
+  max-width: 520px;
+  padding: clamp(1.5rem, 3vw, 3rem);
+  text-align: center;
+}
+
+.content-warning__label {
+  margin: 0 0 1.8rem;
+  font-size: var(--chapter);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(254, 250, 243, 0.45);
+}
+
+.content-warning__body {
+  margin: 0 0 1.2rem;
+  font-size: var(--copy-tight);
+  line-height: 1.7;
+  color: rgba(254, 250, 243, 0.65);
+}
+
+.content-warning__resource {
+  margin: 1.8rem 0 2.2rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  color: rgba(254, 250, 243, 0.3);
+}
+
+.content-warning__proceed {
+  padding: 0.65rem 2.2rem;
+  font-size: var(--copy-tight);
+  font-style: italic;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(254, 250, 243, 0.15);
+  color: rgba(254, 250, 243, 0.5);
+  cursor: pointer;
+  transition: color 0.4s ease, border-color 0.4s ease;
+}
+
+.content-warning__proceed:hover {
+  color: rgba(254, 250, 243, 0.8);
+  border-color: rgba(254, 250, 243, 0.35);
+}
+
+/* ═══════════════════════════════════════════════════
+   TITLE SCREEN
+   ═══════════════════════════════════════════════════ */
+
 .title-screen {
   display: grid;
   place-items: center;
@@ -149,6 +596,17 @@ button:focus-visible {
   background:
     radial-gradient(circle at 50% 20%, rgba(255, 223, 182, 0.18), transparent 34%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.84) 0%, rgba(254, 250, 243, 1) 100%);
+}
+
+.title-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('/images/frames/prologue-apartment.jpg') center center / cover no-repeat;
+  opacity: 0.04;
+  mix-blend-mode: luminosity;
+  filter: saturate(0) contrast(1.2);
+  animation: imageDrift 40s ease-in-out infinite alternate;
 }
 
 .title-screen__grain {
@@ -288,6 +746,79 @@ button:focus-visible {
   transform: scale(1.02);
 }
 
+/* ── Film still integration ── Images dissolve into the gradient like memories ── */
+.scene-renderer__image-layer {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-repeat: no-repeat;
+  z-index: 0;
+  /* Desaturate and soften to merge with gradient palette */
+  filter: saturate(0.4) contrast(0.85) brightness(1.15) blur(1px);
+  mix-blend-mode: luminosity;
+  transform: scale(1.08);
+  /* Mask: fade edges so image never has hard boundaries */
+  -webkit-mask-image:
+    radial-gradient(ellipse 90% 80% at center center,
+      rgba(0,0,0,0.7) 0%,
+      rgba(0,0,0,0.4) 40%,
+      rgba(0,0,0,0.1) 70%,
+      transparent 100%);
+  mask-image:
+    radial-gradient(ellipse 90% 80% at center center,
+      rgba(0,0,0,0.7) 0%,
+      rgba(0,0,0,0.4) 40%,
+      rgba(0,0,0,0.1) 70%,
+      transparent 100%);
+  /* Slow Ken Burns drift */
+  animation: imageDrift 30s ease-in-out infinite alternate;
+}
+
+@keyframes imageDrift {
+  0% { transform: scale(1.08) translate(0%, 0%); }
+  100% { transform: scale(1.12) translate(-1%, -0.5%); }
+}
+
+/* Night scenes: image layer darkens, shifts to warm gold tint */
+.scene-renderer.is-night .scene-renderer__image-layer {
+  filter: saturate(0.2) contrast(1.2) brightness(0.5) blur(1.5px);
+  mix-blend-mode: soft-light;
+  -webkit-mask-image:
+    radial-gradient(ellipse 80% 70% at center 40%,
+      rgba(0,0,0,0.5) 0%,
+      rgba(0,0,0,0.2) 50%,
+      transparent 100%);
+  mask-image:
+    radial-gradient(ellipse 80% 70% at center 40%,
+      rgba(0,0,0,0.5) 0%,
+      rgba(0,0,0,0.2) 50%,
+      transparent 100%);
+}
+
+/* Dream scenes: image blooms and floats */
+.scene-renderer.is-dream .scene-renderer__image-layer {
+  filter: saturate(0.35) contrast(0.6) brightness(1.4) blur(3px);
+  mix-blend-mode: screen;
+  animation: dreamImageFloat 20s ease-in-out infinite alternate;
+}
+
+@keyframes dreamImageFloat {
+  0% { transform: scale(1.1) translate(0%, 0%) rotate(0deg); }
+  100% { transform: scale(1.15) translate(-1%, -1%) rotate(0.3deg); }
+}
+
+/* Ritual scenes: images pulse with the ceremony, slightly more present */
+.scene-renderer.is-ritual .scene-renderer__image-layer {
+  filter: saturate(0.6) contrast(0.95) brightness(1.08) blur(0.5px);
+  mix-blend-mode: luminosity;
+  animation: ritualImagePulse 6s ease-in-out infinite;
+}
+
+@keyframes ritualImagePulse {
+  0%, 100% { opacity: inherit; filter: saturate(0.6) contrast(0.95) brightness(1.08) blur(0.5px); }
+  50% { filter: saturate(0.75) contrast(1.0) brightness(1.12) blur(0.3px); }
+}
+
 .scene-renderer__wash {
   background:
     radial-gradient(circle at 20% 20%, rgba(255, 255, 255, calc(0.3 + var(--bloom, 0) * 0.8)), transparent calc(30% + var(--bloom, 0) * 10%)),
@@ -303,6 +834,8 @@ button:focus-visible {
   place-items: center;
   height: 100%;
   padding: clamp(1.5rem, 3vw, 3rem);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .perception-compositor {
@@ -433,7 +966,7 @@ button:focus-visible {
 
 .scene-renderer__scene {
   display: grid;
-  align-content: center;
+  align-content: start;
   justify-items: start;
   min-height: 100%;
   padding: clamp(3rem, 6vw, 5rem) clamp(1rem, 2vw, 2rem);
@@ -486,6 +1019,245 @@ button:focus-visible {
   animation: cursorBlink 1s step-end infinite;
 }
 
+.exploration-renderer__layout {
+  display: grid;
+  grid-template-columns: minmax(17rem, 25rem) minmax(22rem, 1fr);
+  gap: clamp(1.5rem, 3vw, 3rem);
+  align-items: stretch;
+  width: min(100%, 72rem);
+}
+
+.exploration-renderer__brief,
+.exploration-renderer__board {
+  position: relative;
+  border: 1px solid rgba(44, 36, 22, 0.08);
+  background: rgba(254, 250, 243, 0.56);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 22px 60px rgba(44, 36, 22, 0.08);
+}
+
+.exploration-renderer__brief {
+  display: grid;
+  align-content: start;
+  gap: 0.8rem;
+  padding: clamp(1.4rem, 2vw, 2rem);
+}
+
+.exploration-renderer__kicker {
+  font-size: 0.74rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  opacity: 0.52;
+}
+
+.exploration-renderer__chapter {
+  margin: 0;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(1.4rem, 1.1rem + 0.8vw, 2rem);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: capitalize;
+}
+
+.exploration-renderer__text {
+  margin: 0;
+  max-width: 34ch;
+  font-size: var(--copy-tight);
+  line-height: 1.72;
+  white-space: pre-line;
+  text-wrap: pretty;
+}
+
+.exploration-renderer__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin: 0.4rem 0 0;
+}
+
+.exploration-renderer__stats div {
+  display: grid;
+  gap: 0.18rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(44, 36, 22, 0.08);
+}
+
+.exploration-renderer__stats dt {
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.48;
+}
+
+.exploration-renderer__stats dd {
+  margin: 0;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(1.1rem, 1rem + 0.35vw, 1.35rem);
+  font-weight: 500;
+}
+
+.exploration-renderer__actions {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 0.8rem;
+}
+
+.exploration-renderer__advance {
+  justify-self: start;
+  padding: 0.8rem 1.15rem;
+  border: 1px solid rgba(44, 36, 22, 0.12);
+  background: linear-gradient(135deg, rgba(255, 249, 236, 0.92), rgba(244, 232, 204, 0.8));
+  font-size: 0.76rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.exploration-renderer__advance:hover,
+.exploration-renderer__advance:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(196, 163, 90, 0.45);
+  box-shadow: 0 14px 28px rgba(196, 163, 90, 0.12);
+}
+
+.exploration-renderer__hint {
+  max-width: 26ch;
+  font-size: 0.82rem;
+  font-style: italic;
+  line-height: 1.5;
+  opacity: 0.56;
+}
+
+.exploration-renderer__board {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1rem, 2vw, 1.5rem);
+}
+
+.exploration-renderer__map {
+  position: relative;
+  min-height: clamp(22rem, 50vh, 30rem);
+  border: 1px solid rgba(44, 36, 22, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3), transparent 48%),
+    radial-gradient(circle at 14% 20%, rgba(255, 255, 255, 0.45), transparent 22%),
+    linear-gradient(140deg, rgba(236, 225, 193, 0.78), rgba(208, 219, 188, 0.7) 40%, rgba(239, 230, 205, 0.76));
+  overflow: hidden;
+}
+
+.exploration-renderer__map::before,
+.exploration-renderer__map::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.exploration-renderer__map::before {
+  background:
+    radial-gradient(circle at 18% 78%, rgba(104, 133, 90, 0.18), transparent 16%),
+    radial-gradient(circle at 76% 24%, rgba(196, 163, 90, 0.16), transparent 18%),
+    radial-gradient(circle at 54% 52%, rgba(255, 255, 255, 0.16), transparent 22%);
+  mix-blend-mode: soft-light;
+}
+
+.exploration-renderer__map::after {
+  background: linear-gradient(180deg, rgba(44, 36, 22, 0.03), transparent 25%, transparent 75%, rgba(44, 36, 22, 0.06));
+}
+
+.exploration-renderer__grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(44, 36, 22, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(44, 36, 22, 0.06) 1px, transparent 1px);
+  background-size: 14% 14%;
+  opacity: 0.24;
+}
+
+.exploration-renderer__hotspot {
+  position: absolute;
+  display: grid;
+  gap: 0.28rem;
+  justify-items: center;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  transition: transform 200ms ease, filter 200ms ease, opacity 200ms ease;
+}
+
+.exploration-renderer__hotspot:hover,
+.exploration-renderer__hotspot:focus-visible {
+  transform: translate(-50%, -50%) scale(1.04);
+}
+
+.exploration-renderer__hotspot.is-inspected {
+  opacity: 0.72;
+}
+
+.exploration-renderer__hotspot.is-evidence .exploration-renderer__hotspot-glyph {
+  color: var(--blood);
+  box-shadow: 0 0 0 1px rgba(139, 37, 0, 0.12), 0 0 20px rgba(139, 37, 0, 0.08);
+}
+
+.exploration-renderer__hotspot-glyph {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(44, 36, 22, 0.12);
+  background: rgba(254, 250, 243, 0.92);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.25rem;
+  line-height: 1;
+  box-shadow: 0 8px 16px rgba(44, 36, 22, 0.08);
+}
+
+.exploration-renderer__hotspot-label {
+  max-width: 10ch;
+  padding: 0.1rem 0.35rem;
+  background: rgba(254, 250, 243, 0.84);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(44, 36, 22, 0.05);
+}
+
+.exploration-renderer__inspection {
+  min-height: 8.5rem;
+  padding: 1rem 1.1rem 1.15rem;
+  border-left: 3px solid rgba(44, 36, 22, 0.08);
+  background: rgba(255, 251, 243, 0.86);
+}
+
+.exploration-renderer__inspection.is-evidence {
+  border-left-color: rgba(139, 37, 0, 0.42);
+}
+
+.exploration-renderer__inspection.is-warning {
+  border-left-color: rgba(196, 163, 90, 0.46);
+}
+
+.exploration-renderer__inspection-title {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.52;
+}
+
+.exploration-renderer__inspection-body {
+  margin: 0;
+  font-size: var(--copy-tight);
+  line-height: 1.68;
+  white-space: pre-line;
+  text-wrap: pretty;
+}
+
 .choice-panel {
   display: grid;
   gap: 0.85rem;
@@ -500,25 +1272,33 @@ button:focus-visible {
   justify-content: flex-start;
   width: fit-content;
   max-width: 100%;
-  padding: 0.35rem 0.8rem 0.5rem 0;
+  padding: 0.6rem 1.4rem 0.7rem 1.2rem;
   cursor: pointer;
-  opacity: 0.72;
+  opacity: 0.85;
+  font-size: var(--copy);
+  font-style: italic;
+  letter-spacing: 0.01em;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
   transition:
     color 500ms cubic-bezier(0.22, 1, 0.36, 1),
     text-shadow 500ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 500ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 500ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .choice-button:hover,
 .choice-button:focus-visible {
   opacity: 1;
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
 .choice-button__label {
   position: relative;
   z-index: 2;
-  font-size: var(--copy-tight);
+  font-size: var(--copy);
   font-style: italic;
   line-height: 1.5;
   letter-spacing: 0.01em;
@@ -583,19 +1363,19 @@ button:focus-visible {
   transition: opacity 0.8s ease, filter 0.8s ease, transform 0.8s ease;
 }
 
-/* Chorus 4+: commune choices pulse and grow */
+/* Chorus 4+: commune choices pulse and grow — cursor proximity amplifies */
 [data-chorus="4"] .choice-button--commune,
 [data-chorus="5"] .choice-button--commune {
   animation: communePulse 3s ease-in-out infinite;
-  transform: scale(1.02);
-  opacity: 0.9;
+  transform: scale(calc(1.02 + var(--cursor-proximity) * 0.03));
+  opacity: calc(0.9 + var(--cursor-proximity) * 0.1);
 }
 
 [data-chorus="4"] .choice-button--resistance,
 [data-chorus="5"] .choice-button--resistance {
-  opacity: 0.36;
+  opacity: calc(0.36 - var(--cursor-proximity) * 0.1);
   transform: scale(0.96);
-  filter: saturate(0.5) brightness(0.88);
+  filter: saturate(0.5) brightness(calc(0.88 - var(--cursor-proximity) * 0.05));
 }
 
 /* Chorus 4+: hover manipulation — commune feels magnetic, resistance feels slippery */
@@ -666,6 +1446,117 @@ button:focus-visible {
   15% { opacity: 0.3; }
   70% { opacity: 0.2; }
   100% { opacity: 0; }
+}
+
+/* ── Cursor Influence — the commune watches your deliberation ── */
+/* Proximity glow is layered via box-shadow (doesn't conflict with existing transforms) */
+
+.choice-button {
+  --cursor-proximity: 0;
+  --friction-x: 0px;
+  --friction-y: 0px;
+}
+
+/* Cursor friction: resistance choices physically resist the cursor at high chorus */
+.choice-button--resistance {
+  translate: var(--friction-x) var(--friction-y);
+  transition: translate 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Commune choices: warm golden glow as cursor nears */
+.choice-button--commune {
+  box-shadow:
+    0 0 calc(var(--cursor-proximity) * 22px) rgba(196, 163, 90, calc(var(--cursor-proximity) * 0.28)),
+    0 0 calc(var(--cursor-proximity) * 44px) rgba(255, 235, 188, calc(var(--cursor-proximity) * 0.10));
+}
+
+/* Resistance choices: faint chill as cursor nears */
+.choice-button--resistance {
+  box-shadow:
+    0 0 calc(var(--cursor-proximity) * 12px) rgba(44, 36, 22, calc(var(--cursor-proximity) * 0.06));
+}
+
+/* ── Intent Residue — the commune knows what you wanted ── */
+
+.intent-residue {
+  position: absolute;
+  bottom: -2.5rem;
+  left: 0;
+  right: 0;
+  text-align: center;
+  pointer-events: none;
+  font-family: var(--font-body);
+  z-index: 5;
+}
+
+.intent-residue--whisper {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.intent-residue__frame {
+  display: block;
+  font-style: italic;
+  opacity: 0.5;
+  margin-bottom: 0.3rem;
+}
+
+.intent-residue__abandoned {
+  display: block;
+  font-style: italic;
+  opacity: 0.7;
+  text-shadow: 0 0 12px rgba(196, 163, 90, 0.2);
+}
+
+.intent-residue--afterimage {
+  font-size: 0.85rem;
+}
+
+.intent-residue__double {
+  position: relative;
+  display: inline-block;
+}
+
+.intent-residue__chosen {
+  opacity: 0.3;
+  text-decoration: line-through;
+  text-decoration-color: rgba(196, 163, 90, 0.3);
+}
+
+.intent-residue__shadow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  color: var(--accent);
+  text-shadow: 0 0 18px rgba(196, 163, 90, 0.25);
+  font-style: italic;
+}
+
+.intent-residue--contamination {
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--text);
+  opacity: 0.6;
+}
+
+.intent-residue__intrusion {
+  text-shadow:
+    0 0 14px rgba(196, 163, 90, 0.15),
+    0 0 30px rgba(255, 235, 188, 0.06);
+}
+
+/* At high chorus, residue is more visible and persistent */
+[data-chorus="4"] .intent-residue,
+[data-chorus="5"] .intent-residue {
+  font-size: 0.88rem;
+}
+
+[data-chorus="5"] .intent-residue--contamination {
+  color: var(--accent);
+  opacity: 0.75;
 }
 
 @keyframes cursorBlink {
@@ -1126,9 +2017,11 @@ button:focus-visible {
 .deadline-choice {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  margin-top: 2rem;
+  gap: 0.75rem;
+  margin-top: 2.5rem;
   width: 100%;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .deadline-choice__timer-track {
@@ -1331,6 +2224,48 @@ button:focus-visible {
 
 .settings-overlay__close:hover {
   background: rgba(196, 163, 90, 0.1);
+}
+
+.settings-overlay__section {
+  font-family: inherit;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.6;
+  margin: 1.2rem 0 0.6rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid rgba(196, 163, 90, 0.15);
+}
+
+.settings-overlay__hint {
+  display: block;
+  font-size: 0.7rem;
+  opacity: 0.4;
+  margin-top: 0.15rem;
+  letter-spacing: 0.02em;
+}
+
+/* ═══════════════════════════════════════════════════
+   FONT SIZE SCALING
+   ═══════════════════════════════════════════════════ */
+
+[data-font-size="small"] .scene-renderer__text {
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+[data-font-size="large"] .scene-renderer__text {
+  font-size: 1.2rem;
+  line-height: 1.8;
+}
+
+[data-font-size="large"] .scene-renderer__chapter {
+  font-size: 0.95rem;
+}
+
+[data-font-size="large"] .deadline-choice__text {
+  font-size: 1rem;
 }
 
 /* ═══════════════════════════════════════════════════
@@ -1878,6 +2813,21 @@ button:focus-visible {
   margin-top: -0.5rem;
 }
 
+.title-screen__communion {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 0.72rem;
+  font-style: italic;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  margin-top: 0.8rem;
+  text-align: center;
+}
+
+.dread-meter__stat-value--communion {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ═══════════════════════════════════════════════════
    CREDITS SCREEN
    ═══════════════════════════════════════════════════ */
@@ -2127,4 +3077,396 @@ button:focus-visible {
   text-transform: uppercase;
   color: var(--blood);
   opacity: 0.4;
+}
+
+/* ═══════════════════════════════════════════════════
+   PSYCHEDELIC OVERLAY — "The grass starts breathing."
+   Psilocybin visual distortion system.
+   Three levels: onset → peak → overwhelming.
+   ═══════════════════════════════════════════════════ */
+
+.psychedelic {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+}
+
+/* ── Color Wash Layer ── Hue cycling through the spectrum ── */
+.psychedelic__hue {
+  position: absolute;
+  inset: 0;
+  mix-blend-mode: color;
+  opacity: 0;
+}
+
+.psychedelic--level-1 .psychedelic__hue {
+  opacity: 0.06;
+  animation: psychHueDrift 30s linear infinite;
+}
+
+.psychedelic--level-2 .psychedelic__hue {
+  opacity: 0.12;
+  animation: psychHueDrift 18s linear infinite;
+}
+
+.psychedelic--level-3 .psychedelic__hue {
+  opacity: 0.2;
+  animation: psychHueDrift 10s linear infinite;
+}
+
+@keyframes psychHueDrift {
+  0%   { background-color: hsl(280, 50%, 50%); }
+  16%  { background-color: hsl(220, 55%, 50%); }
+  33%  { background-color: hsl(150, 45%, 45%); }
+  50%  { background-color: hsl(80, 55%, 50%); }
+  66%  { background-color: hsl(40, 60%, 50%); }
+  83%  { background-color: hsl(330, 50%, 50%); }
+  100% { background-color: hsl(280, 50%, 50%); }
+}
+
+/* ── Pattern Layers ── Floating organic gradients ── */
+.psychedelic__pattern {
+  position: absolute;
+  inset: -40%;
+  opacity: 0;
+  mix-blend-mode: soft-light;
+}
+
+.psychedelic--level-1 .psychedelic__pattern { opacity: 0.12; }
+.psychedelic--level-2 .psychedelic__pattern { opacity: 0.22; }
+.psychedelic--level-3 .psychedelic__pattern { opacity: 0.35; }
+
+.psychedelic__pattern--violet {
+  background: radial-gradient(
+    ellipse at 30% 70%,
+    rgba(148, 103, 189, 0.5),
+    transparent 55%
+  );
+  animation: psychFloat1 9s ease-in-out infinite;
+}
+
+.psychedelic__pattern--emerald {
+  background: radial-gradient(
+    ellipse at 70% 25%,
+    rgba(76, 175, 80, 0.4),
+    transparent 50%
+  );
+  animation: psychFloat2 13s ease-in-out infinite;
+}
+
+.psychedelic__pattern--gold {
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(255, 193, 7, 0.35),
+    transparent 60%
+  );
+  animation: psychFloat3 17s ease-in-out infinite;
+}
+
+@keyframes psychFloat1 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  25%      { transform: translate(12%, -8%) scale(1.15) rotate(3deg); }
+  50%      { transform: translate(-5%, 6%) scale(0.95) rotate(-2deg); }
+  75%      { transform: translate(8%, 4%) scale(1.08) rotate(1deg); }
+}
+
+@keyframes psychFloat2 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33%      { transform: translate(-15%, 10%) scale(1.2) rotate(-4deg); }
+  66%      { transform: translate(10%, -12%) scale(0.9) rotate(3deg); }
+}
+
+@keyframes psychFloat3 {
+  0%, 100% { transform: translate(0, 0) scale(0.85); }
+  20%      { transform: translate(18%, 12%) scale(1.25) rotate(6deg); }
+  50%      { transform: translate(-8%, -18%) scale(1.1) rotate(-3deg); }
+  80%      { transform: translate(5%, 8%) scale(0.95) rotate(2deg); }
+}
+
+/* ── Breathing Pulse ── The world's heartbeat made visible ── */
+.psychedelic__pulse {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 255, 255, 0.08),
+    transparent 70%
+  );
+  opacity: 0;
+}
+
+.psychedelic--level-1 .psychedelic__pulse {
+  opacity: 1;
+  animation: psychPulse 7s ease-in-out infinite;
+}
+
+.psychedelic--level-2 .psychedelic__pulse {
+  opacity: 1;
+  animation: psychPulse 5s ease-in-out infinite;
+}
+
+.psychedelic--level-3 .psychedelic__pulse {
+  opacity: 1;
+  animation: psychPulse 3.5s ease-in-out infinite;
+}
+
+@keyframes psychPulse {
+  0%, 100% { transform: scale(0.85); opacity: 0; }
+  50%      { transform: scale(1.3); opacity: 0.6; }
+}
+
+/* ── Edge Luminance ── Borders become organic light ── */
+.psychedelic__edge {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.psychedelic--level-1 .psychedelic__edge {
+  opacity: 1;
+  box-shadow: inset 0 0 80px rgba(148, 103, 189, 0.08);
+  animation: psychEdge 8s ease-in-out infinite;
+}
+
+.psychedelic--level-2 .psychedelic__edge {
+  opacity: 1;
+  box-shadow: inset 0 0 120px rgba(148, 103, 189, 0.12);
+  animation: psychEdge 5s ease-in-out infinite;
+}
+
+.psychedelic--level-3 .psychedelic__edge {
+  opacity: 1;
+  box-shadow: inset 0 0 160px rgba(148, 103, 189, 0.18);
+  animation: psychEdge 3s ease-in-out infinite;
+}
+
+@keyframes psychEdge {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 80px rgba(148, 103, 189, 0.1),
+      inset 0 0 40px rgba(76, 175, 80, 0.05);
+  }
+  33% {
+    box-shadow:
+      inset 0 0 100px rgba(76, 175, 80, 0.12),
+      inset 0 0 50px rgba(255, 193, 7, 0.06);
+  }
+  66% {
+    box-shadow:
+      inset 0 0 90px rgba(255, 193, 7, 0.1),
+      inset 0 0 45px rgba(148, 103, 189, 0.06);
+  }
+}
+
+/* ── Tracers ── Afterimage halos (level 2+) ── */
+.psychedelic__tracers {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(148, 103, 189, 0.06), transparent 30%),
+    radial-gradient(circle at 80% 20%, rgba(76, 175, 80, 0.05), transparent 25%),
+    radial-gradient(circle at 50% 10%, rgba(255, 214, 127, 0.04), transparent 35%);
+  animation: psychTracers 4s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+
+@keyframes psychTracers {
+  0%, 100% { opacity: 0.3; filter: blur(20px); }
+  50%      { opacity: 0.7; filter: blur(40px); }
+}
+
+/* ── Reality Fracture ── Level 3: geometric intrusion ── */
+.psychedelic__fracture {
+  position: absolute;
+  inset: -50%;
+  background:
+    repeating-conic-gradient(
+      from 0deg at 50% 50%,
+      transparent 0deg 15deg,
+      rgba(255, 255, 255, 0.015) 15deg 18deg
+    );
+  animation: psychFracture 25s linear infinite;
+  mix-blend-mode: overlay;
+}
+
+@keyframes psychFracture {
+  from { transform: rotate(0deg) scale(2.5); }
+  to   { transform: rotate(360deg) scale(2.5); }
+}
+
+.psychedelic__interference {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      rgba(255, 255, 255, 0.01) 3px,
+      rgba(255, 255, 255, 0.01) 4px
+    );
+  animation: psychInterference 0.3s steps(3) infinite;
+  opacity: 0.4;
+}
+
+@keyframes psychInterference {
+  0%   { transform: translateY(0); }
+  33%  { transform: translateY(-1px); }
+  66%  { transform: translateY(1px); }
+  100% { transform: translateY(0); }
+}
+
+/* ── Scene-Level Psychedelic Effects ──
+   These apply to the scene content when the trip is active */
+
+/* Organic breathing — the whole scene inhales and exhales */
+.scene-renderer[data-psychedelic="1"] .scene-renderer__frame {
+  animation: psychSceneBreathe 7s ease-in-out infinite;
+}
+
+.scene-renderer[data-psychedelic="2"] .scene-renderer__frame {
+  animation: psychSceneBreathe 5s ease-in-out infinite;
+}
+
+.scene-renderer[data-psychedelic="3"] .scene-renderer__frame {
+  animation: psychSceneBreathe 3.5s ease-in-out infinite;
+}
+
+@keyframes psychSceneBreathe {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  15%      { transform: scale(1.005) rotate(0.12deg); }
+  35%      { transform: scale(1.012) rotate(-0.08deg); }
+  55%      { transform: scale(1.008) rotate(0.15deg); }
+  75%      { transform: scale(1.014) rotate(-0.12deg); }
+  90%      { transform: scale(1.003) rotate(0.04deg); }
+}
+
+/* Color saturation intensifies — existing colors become impossibly vivid */
+.scene-renderer[data-psychedelic="1"] .scene-renderer__backdrop {
+  filter: saturate(1.25) brightness(1.04);
+  transition: filter 4s ease;
+}
+
+.scene-renderer[data-psychedelic="2"] .scene-renderer__backdrop {
+  filter: saturate(1.6) brightness(1.08) contrast(1.05);
+  transition: filter 3s ease;
+}
+
+.scene-renderer[data-psychedelic="3"] .scene-renderer__backdrop {
+  filter: saturate(2) brightness(1.12) contrast(1.08);
+  transition: filter 2s ease;
+  animation: psychBackdropPulse 4s ease-in-out infinite;
+}
+
+@keyframes psychBackdropPulse {
+  0%, 100% { filter: saturate(2) brightness(1.12) contrast(1.08); }
+  50%      { filter: saturate(2.5) brightness(1.18) contrast(1.12); }
+}
+
+/* Text becomes organic — words breathe with the world */
+.scene-renderer[data-psychedelic="1"] .scene-renderer__text {
+  animation: psychTextBreath 8s ease-in-out infinite;
+}
+
+.scene-renderer[data-psychedelic="2"] .scene-renderer__text {
+  animation: psychTextWave 5s ease-in-out infinite;
+}
+
+.scene-renderer[data-psychedelic="3"] .scene-renderer__text {
+  animation: psychTextWave 3s ease-in-out infinite;
+  text-shadow: 0 0 8px rgba(148, 103, 189, 0.15);
+}
+
+@keyframes psychTextBreath {
+  0%, 100% { transform: scaleY(1); opacity: 1; }
+  50%      { transform: scaleY(1.003); opacity: 0.96; }
+}
+
+@keyframes psychTextWave {
+  0%, 100% { transform: scaleY(1) skewX(0deg); letter-spacing: normal; }
+  25%      { transform: scaleY(1.004) skewX(0.15deg); letter-spacing: 0.008em; }
+  50%      { transform: scaleY(0.998) skewX(-0.1deg); letter-spacing: 0.003em; }
+  75%      { transform: scaleY(1.003) skewX(0.08deg); letter-spacing: 0.005em; }
+}
+
+/* Choices glow with psychedelic energy during trip */
+.scene-renderer[data-psychedelic="2"] .choice-button,
+.scene-renderer[data-psychedelic="3"] .choice-button {
+  text-shadow: 0 0 12px rgba(148, 103, 189, 0.2);
+  transition: text-shadow 0.6s ease, box-shadow 0.6s ease;
+}
+
+.scene-renderer[data-psychedelic="3"] .choice-button:hover {
+  text-shadow: 0 0 20px rgba(148, 103, 189, 0.35);
+  box-shadow: 0 0 30px rgba(148, 103, 189, 0.08);
+}
+
+/* Perception compositor flowers become hyper-active during trip */
+.scene-renderer[data-psychedelic="2"] .perception-compositor__flowers,
+.scene-renderer[data-psychedelic="3"] .perception-compositor__flowers {
+  animation-duration: 3s !important;
+  filter: saturate(1.5) brightness(1.1);
+}
+
+.scene-renderer[data-psychedelic="3"] .perception-compositor__flowers {
+  animation-duration: 2s !important;
+  filter: saturate(2) brightness(1.2) drop-shadow(0 0 8px rgba(232, 196, 196, 0.3));
+}
+
+/* Vines pulse more intensely */
+.scene-renderer[data-psychedelic="2"] .perception-compositor__vine,
+.scene-renderer[data-psychedelic="3"] .perception-compositor__vine {
+  animation: psychVinePulse 4s ease-in-out infinite !important;
+  opacity: 0.8 !important;
+}
+
+@keyframes psychVinePulse {
+  0%, 100% { transform: scaleX(1) scaleY(1); filter: saturate(1); }
+  50%      { transform: scaleX(1.03) scaleY(1.02); filter: saturate(1.4); }
+}
+
+/* ── Mobile Psychedelic ── Reduced but still impactful ── */
+@media (max-width: 720px) {
+  .exploration-renderer__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .exploration-renderer__brief {
+    order: 2;
+  }
+
+  .exploration-renderer__board {
+    order: 1;
+  }
+
+  .exploration-renderer__map {
+    min-height: 19rem;
+  }
+
+  .exploration-renderer__hotspot-label {
+    max-width: 9ch;
+    font-size: 0.56rem;
+  }
+
+  .psychedelic__pattern { inset: -20%; }
+  .psychedelic__fracture { inset: -30%; }
+  .psychedelic--level-3 .psychedelic__hue { opacity: 0.15; }
+}
+
+/* ── Reduced motion ── Respect preference, keep color shifts only ── */
+@media (prefers-reduced-motion: reduce) {
+  .psychedelic__pattern,
+  .psychedelic__pulse,
+  .psychedelic__fracture,
+  .psychedelic__interference,
+  .psychedelic__tracers {
+    animation: none !important;
+  }
+
+  .scene-renderer[data-psychedelic] .scene-renderer__frame,
+  .scene-renderer[data-psychedelic] .scene-renderer__text {
+    animation: none !important;
+  }
 }

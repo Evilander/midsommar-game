@@ -166,8 +166,11 @@ export function MayQueenDance({
   // Initialize beats for current round
   useEffect(() => {
     if (phase !== 'playing' || !currentRound) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset round state
     setBeats(currentRound.beats.map((b) => ({ beat: b, result: 'waiting', timeMs: b.timeMs })))
+     
     setCurrentBeatIdx(0)
+     
     setElapsedMs(0)
     startTimeRef.current = performance.now()
 
@@ -186,6 +189,7 @@ export function MayQueenDance({
   useEffect(() => {
     if (phase !== 'playing' || !currentRound) return
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- update beat results on tick
     setBeats((prev) => {
       let changed = false
       const next = prev.map((b) => {

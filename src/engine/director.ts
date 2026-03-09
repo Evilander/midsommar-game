@@ -8,6 +8,9 @@ import type {
   PerceptionAxis,
   RelationshipState,
 } from './types'
+import { getCycleCount, hasPreviousChoice, hasSeenEnding } from './ghost'
+import { resolveMemoryBloom } from './memory-bloom'
+import { getMutatedText, filterMutatedChoices } from './cycle-mutation'
 
 // ═══════════════════════════════════════════════════
 // CONDITION EVALUATION
@@ -25,12 +28,20 @@ export function evaluateCondition(condition: VariantCondition, state: GameState)
       return inRange(state.perception.intoxication, condition.min, condition.max)
     case 'autonomy':
       return inRange(state.perception.autonomy, condition.min, condition.max)
+    case 'cycle':
+      return inRange(getCycleCount(), condition.min, condition.max)
+    case 'clue':
+      return state.clues.some((clue) => clue.id === condition.clueId)
     case 'chorus':
       return inRange(state.chorusLevel, condition.min, condition.max)
     case 'flag':
       return (state.flags[condition.flag] ?? false) === condition.value
+    case 'previousChoice':
+      return hasPreviousChoice(condition.sceneId, condition.choiceId)
     case 'relationship':
       return inRange(state.relationships[condition.target], condition.min, condition.max)
+    case 'seenEnding':
+      return hasSeenEnding(condition.ending)
     default: {
       const _exhaustiveCheck: never = condition
       return _exhaustiveCheck
@@ -49,15 +60,39 @@ function inRange(value: number, min?: number, max?: number): boolean {
 // ═══════════════════════════════════════════════════
 
 export function resolveText(scene: SceneNode, state: GameState): string {
-  if (!scene.variants || scene.variants.length === 0) return scene.text
+  let resolved = scene.text
 
-  // Find the first matching variant (ordered by specificity in the scene data)
-  for (const variant of scene.variants) {
-    if (evaluateCondition(variant.condition, state)) {
-      return variant.text
+  if (scene.variants && scene.variants.length > 0) {
+    // Find the first matching variant (ordered by specificity in the scene data)
+    for (const variant of scene.variants) {
+      if (evaluateCondition(variant.condition, state)) {
+        resolved = variant.text
+        break
+      }
     }
   }
-  return scene.text
+
+  if (!scene.echoes || scene.echoes.length === 0) {
+    const bloom = resolveMemoryBloom(scene.id, scene.memoryBloom)
+    const withBloom = bloom ? `${resolved}\n\n${bloom}` : resolved
+    return getMutatedText(scene.id, withBloom)
+  }
+
+  const echoes = scene.echoes
+    .filter((echo) => evaluateCondition(echo.condition, state))
+    .map((echo) => echo.text.trim())
+    .filter(Boolean)
+
+  if (echoes.length === 0) {
+    const bloom = resolveMemoryBloom(scene.id, scene.memoryBloom)
+    const withBloom = bloom ? `${resolved}\n\n${bloom}` : resolved
+    return getMutatedText(scene.id, withBloom)
+  }
+
+  const withEchoes = `${resolved}\n\n${echoes.join('\n\n')}`
+  const bloom = resolveMemoryBloom(scene.id, scene.memoryBloom)
+  const withBloom = bloom ? `${withEchoes}\n\n${bloom}` : withEchoes
+  return getMutatedText(scene.id, withBloom)
 }
 
 // ═══════════════════════════════════════════════════
@@ -67,12 +102,20 @@ export function resolveText(scene: SceneNode, state: GameState): string {
 export function resolveChoices(scene: SceneNode, state: GameState): Choice[] {
   if (!scene.choices) return []
 
-  return scene.choices
+  // Filter by condition first
+  const available = scene.choices
     .filter(c => !c.condition || evaluateCondition(c.condition, state))
+
+  // Cycle mutations may remove choices on replay
+  const survivingIds = filterMutatedChoices(
+    scene.id,
+    available.map(c => c.id),
+  )
+
+  return available
+    .filter(c => survivingIds.includes(c.id))
     .map(choice => ({
       ...choice,
-      // The Chorus: when autonomy is low and chorus level is high,
-      // shift to collective voice
       text: shouldUseChorus(state) && choice.chorusText
         ? choice.chorusText
         : choice.text
@@ -80,9 +123,15 @@ export function resolveChoices(scene: SceneNode, state: GameState): Choice[] {
 }
 
 function shouldUseChorus(state: GameState): boolean {
-  // The Chorus activates gradually:
-  // chorus level 3+ AND autonomy below 50
-  return state.chorusLevel >= 3 && state.perception.autonomy < 50
+  if (state.chorusLevel < 3) return false
+  // Activation threshold loosens as chorus deepens —
+  // at level 3 you can still resist with high autonomy,
+  // at level 5 the collective voice is almost inescapable
+  const autonomyThreshold = 80 - (state.chorusLevel - 2) * 15
+  // Level 3: autonomy < 65  — choices start shifting
+  // Level 4: autonomy < 50  — hard to resist
+  // Level 5: autonomy < 35  — the commune speaks through you
+  return state.perception.autonomy < autonomyThreshold
 }
 
 // ═══════════════════════════════════════════════════
@@ -90,18 +139,44 @@ function shouldUseChorus(state: GameState): boolean {
 // ═══════════════════════════════════════════════════
 
 export function calculateChorusLevel(state: GameState): number {
-  const { belonging, autonomy, grief } = state.perception
+  const { belonging, autonomy, grief, intoxication, trust, sleep } = state.perception
 
-  // Chorus grows when belonging is high and autonomy is low
-  // Grief accelerates it (vulnerability)
+  // Primary pathway: belonging vs autonomy tension
   let level = 0
   if (belonging > 20) level = 1
   if (belonging > 40 && autonomy < 70) level = 2
   if (belonging > 55 && autonomy < 55) level = 3
   if (belonging > 70 && autonomy < 40) level = 4
-  if (belonging > 85 && autonomy < 25 && grief > 60) level = 5
+  if (belonging > 85 && autonomy < 25) level = 5
 
-  return level
+  // Grief pathway: deep loss makes you susceptible to collective comfort
+  if (grief > 70 && belonging > 30) level = Math.max(level, 2)
+  if (grief > 80 && autonomy < 50) level = Math.max(level, 3)
+
+  // Intoxication pathway: drugs dissolve the boundary between self and group
+  if (intoxication > 50 && belonging > 40) level = Math.max(level, 2)
+  if (intoxication > 70 && autonomy < 60) level = Math.max(level, 3)
+
+  // Trust pathway: deep trust in the commune bypasses resistance
+  if (trust > 70 && belonging > 50) level = Math.max(level, 3)
+
+  // Sleep deprivation pathway: exhaustion erodes the will to resist
+  if (sleep < 30 && belonging > 40) level = Math.max(level, 2)
+  if (sleep < 20 && autonomy < 50) level = Math.max(level, 3)
+
+  // Combined overwhelm: when enough factors stack, the chorus surges
+  const overwhelmFactors =
+    (belonging > 50 ? 1 : 0) +
+    (autonomy < 40 ? 1 : 0) +
+    (grief > 60 ? 1 : 0) +
+    (intoxication > 40 ? 1 : 0) +
+    (sleep < 40 ? 1 : 0) +
+    (trust > 60 ? 1 : 0)
+
+  if (overwhelmFactors >= 4) level = Math.max(level, 4)
+  if (overwhelmFactors >= 5 && belonging > 60) level = Math.max(level, 5)
+
+  return Math.min(5, level)
 }
 
 // ═══════════════════════════════════════════════════
@@ -135,16 +210,20 @@ export function applyChoice(state: GameState, choice: Choice): GameState {
     newState.inventory = inv
   }
 
-  // Apply chorus delta
+  // Apply chorus delta — authored resistance can pull below the calculated floor.
+  // The calculated level only RAISES chorus (natural growth from assimilation),
+  // never overwrites an explicit reduction from player choice.
   if (effects.chorus) {
     newState.chorusLevel = Math.max(0, Math.min(5, state.chorusLevel + effects.chorus))
   }
 
-  // Recalculate chorus level based on new perception
-  newState.chorusLevel = Math.max(
-    newState.chorusLevel,
-    calculateChorusLevel(newState)
-  )
+  // Natural chorus growth: only escalate, never undo player resistance
+  const naturalLevel = calculateChorusLevel(newState)
+  if (naturalLevel > newState.chorusLevel && !effects.chorus) {
+    newState.chorusLevel = naturalLevel
+  } else if (!effects.chorus) {
+    newState.chorusLevel = Math.max(newState.chorusLevel, naturalLevel)
+  }
 
   // Track history
   newState.history = [...state.history, state.scene]
@@ -198,9 +277,9 @@ export function resolveVisualEffects(scene: SceneNode, state: GameState) {
 
 export function resolveTypingDelay(scene: SceneNode, state: GameState): number {
   const base = {
-    slow: 60,
-    normal: 35,
-    fast: 20,
+    slow: 42,
+    normal: 24,
+    fast: 14,
     instant: 0,
   }[scene.typingSpeed ?? 'normal']
 

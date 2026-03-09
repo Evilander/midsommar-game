@@ -15,7 +15,7 @@ export const DAY2_SCENES: SceneNode[] = [
 
 Not the half-sleep harmony from the night. This is full-throated, purposeful, rising from every building at once. Through the window, you see people moving in white — setting tables, carrying flowers, preparing.
 
-Your head aches. Whether from the journey, the grief, or the way this place seems to vibrate at a frequency your body can't quite tune to.
+Your head aches. Whether from the journey, the grief, or the strain of being here.
 
 Christian's bed is already empty.`,
     background: 'harga_meadow',
@@ -83,7 +83,7 @@ The two of them share a look you're not invited into. It's about the ceremony to
     chapter: 'attestupa',
     text: `The women welcome you without surprise, as if a place had already been set aside.
 
-They hand you flowers to weave into a garland. Your fingers are clumsy at first, but a young woman — maybe nineteen, with sun-blonde hair and a smile like a closed door — gently repositions your hands.
+They hand you flowers to weave into a garland. Your fingers are clumsy at first, but a young woman — maybe nineteen, with sun-blonde hair and a small, unreadable smile — gently repositions your hands.
 
 "Like this," she says. "You let the stem find its own path."
 
@@ -152,7 +152,7 @@ He watches your face.
 
 "It's a cliff. They jump. It's considered a great honor."
 
-The silence after that sentence is very loud.`,
+No one speaks for a moment.`,
     background: 'harga_meadow',
     ambientSound: 'wind_low',
     typingSpeed: 'slow',
@@ -207,7 +207,7 @@ He looks at you then, and you realize he's not talking about the elders anymore.
 
 "Wouldn't you rather your family had that? A choice? Instead of what happened?"
 
-The question is a knife. It's also, somehow, the gentlest thing anyone has said to you about it.`,
+The question hurts more because he asks it gently.`,
     variants: [
       {
         condition: { type: 'grief', min: 70 },
@@ -268,7 +268,7 @@ No one comes to find you for a long time.`,
     chapter: 'attestupa',
     text: `The community walks together up the hill. The two elders are carried on wooden thrones, draped in flowers your hands may have woven.
 
-They are serene. The elder on the left catches your eye and smiles — the kind of smile that holds a whole life in it.
+They are serene. The elder on the left catches your eye and smiles — He catches your eye and smiles.
 
 At the top of the cliff, they are set down gently. The horizon stretches out forever. The sun refuses to set.
 
@@ -277,6 +277,9 @@ Siv opens a leather-bound book and begins to sing. The words are in a language o
 You stand between Christian and Pelle. Christian grips your arm. His palm is sweating.`,
     background: 'cliff_ceremony',
     ambientSound: 'ritual_chant',
+    sounds: {
+      onEnter: 'chapter_transition',
+    },
     transitionType: 'breathe',
     typingSpeed: 'slow',
     visualEffects: [
@@ -313,9 +316,18 @@ Three men approach with a wooden mallet.
 They silence him.`,
     background: 'cliff_ceremony',
     ambientSound: 'silence_heavy',
+    sounds: {
+      onTextComplete: 'wail_begin',
+    },
     transitionType: 'cut',
     typingSpeed: 'slow',
     pauseAfterMs: 4000,
+    memoryBloom: {
+      lines: [
+        `You know what comes after he steps forward. The sound is next.`,
+        `Your body reacts before he jumps. The cliff is not a shock anymore.`,
+      ],
+    },
     visualEffects: [
       { type: 'vignette', intensity: 0.7 },
     ],
@@ -406,7 +418,7 @@ Siv approaches and places her hand on your cheek.
     chapter: 'attestupa',
     text: `You leave your body.
 
-Not metaphorically. You watch yourself from somewhere slightly above and to the left, a trick your mind learned the night of the phone call. The self that stands on the cliff is a photograph. The self that watches is smoke.
+Not metaphorically. You watch yourself from somewhere slightly above and to the left, a trick your mind learned the night of the phone call. You feel removed from your body, as if you are watching from a short distance away.
 
 Simon is shouting. Connie is hyperventilating. Christian looks at you and says something you can't hear because you are not in your ears right now.
 
@@ -439,7 +451,7 @@ You can feel it — the way he calculates the scene around him. Josh watching. T
 
 He doesn't remove your hands. But he doesn't turn toward you either.
 
-After a long moment, he pats your arm twice. Like you're a dog. Like you're a problem he's managing.
+After a long moment, he pats your arm twice. The same gesture he uses to end conversations.
 
 "Hey," he says. "It's okay. It's over."
 
@@ -458,11 +470,11 @@ It's not over. But you let go. Because the alternative is holding on to someone 
 
 They don't look horrified. They look reverent. Some cry — openly, beautifully, without shame. Others close their eyes and sway, their lips moving in silent prayer.
 
-No one looks away. No one reaches for a phone. No one says "oh my God" in the hollow way Americans say it when they mean "I don't know what to feel so I'll say words."
+No one looks away. No one reaches for a phone. No one speaks out of turn.
 
 They feel. Together. Completely.
 
-Siv's voice rises in a chant that the community joins, voice by voice, until the air itself vibrates with the sound of fifty people processing death the way it was meant to be processed: communally, ritually, with the sun as witness.
+Siv's voice rises in a chant that the community joins, voice by voice, until the air itself vibrates with the sound of fifty people processing death Siv begins a chant and the others join her.
 
 You think: my family died in a closed apartment with the windows taped shut. No one sang. No one held anyone. The paramedics wore gloves.
 
@@ -571,7 +583,7 @@ Nobody mentions them again.`,
     visualEffects: [
       { type: 'vignette', intensity: 0.4 },
     ],
-    next: 'day2_night',
+    next: 'day2_mark_tree',
   },
 
   // ─── Stay ───
@@ -600,7 +612,7 @@ Then he turns to Josh. "Want to check out those rune paintings in the temple?"
 The moment is over.`,
     background: 'harga_meadow',
     ambientSound: 'meadow_birds',
-    next: 'day2_night',
+    next: 'day2_mark_tree',
   },
 
   // ─── Christian decides ───
@@ -624,10 +636,141 @@ But you both know he won't. You both know that if you leave, you leave alone. An
 
 "Fine," you say. "We'll stay."
 
-You don't say it with conviction. You say it with exhaustion. Which the Hårga can smell, and which they will gently, patiently, lovingly feed on.`,
+You don't say it with conviction. You say it with exhaustion. You say it because you are tired.`,
     background: 'harga_gate',
     ambientSound: 'meadow_birds',
-    next: 'day2_night',
+    next: 'day2_mark_tree',
+  },
+
+  // ═══════════════════════════════════════════════════
+  // MARK AND THE ANCESTRAL TREE
+  // ═══════════════════════════════════════════════════
+  {
+    id: 'day2_mark_tree',
+    day: 2,
+    chapter: 'attestupa',
+    text: `During the evening feast, you see Mark stumble away from the long table. He's drunk enough to sway.
+
+He walks to the edge of the clearing where the great tree stands. The oldest tree in the commune. You've seen elders bow toward it. You've seen children leave flowers at its roots.
+
+Mark unzips his fly and urinates on it.
+
+It takes four seconds for every Hårga in your line of sight to stop moving. The silence is immediate. A woman near you sets down her cup without looking at it. An elder's hand goes to his chest.
+
+A young Hårga girl — pretty, dark-haired, your age — crosses the clearing with a smile that doesn't reach her eyes.
+
+"Come," she says to Mark, touching his arm. "I want to show you something."
+
+Mark grins. He zips up. He follows her.
+
+You watch them walk toward the barns, his arm around her waist, her pace just slightly faster than his.
+
+That is the last time you see Mark.`,
+    background: 'harga_meadow',
+    ambientSound: 'feast_distant',
+    sounds: { onEnter: 'ghost_echo' },
+    transitionType: 'dissolve',
+    typingSpeed: 'slow',
+    pauseAfterMs: 3000,
+    visualEffects: [
+      { type: 'vignette', intensity: 0.5 },
+    ],
+    next: 'day2_pelle_held',
+  },
+
+  // ═══════════════════════════════════════════════════
+  // PELLE'S THESIS: "DO YOU FEEL HELD?"
+  // ═══════════════════════════════════════════════════
+  {
+    id: 'day2_pelle_held',
+    day: 2,
+    chapter: 'attestupa',
+    text: `Pelle finds you behind the sleeping quarters.
+
+You are sitting in the grass. You are not crying anymore.
+
+He sits down beside you.
+
+"I know what you're going through, Dani," he says. "My parents died when I was a boy. In a fire."
+
+He says it plainly.
+
+"I was an orphan. But I was not alone. I had a family here. They held me. That was the difference."
+
+The singing from the main house carries across the field.
+
+"Everyone deserves that," he says. "You do too."
+
+You look at him.
+
+"Pelle, Christian could walk in."
+
+"He is why I am asking." He does not lower his voice. "Do you feel held by him? Does he feel like home?"
+
+You do not answer right away.`,
+    variants: [
+      {
+        condition: { type: 'flag', flag: 'admitted_truth_to_friend', value: true },
+        text: `Pelle finds you behind the sleeping quarters.
+
+He sits beside you.
+
+"I know what you're going through, Dani. My parents died when I was a boy. In a fire. I became an orphan."
+
+He says it as fact.
+
+"But I still had a family here. I was not left alone in it."
+
+He turns to you.
+
+"Do you feel held by him, Dani? Does Christian feel like home?"
+
+You told your friend the truth back in Brooklyn. You knew it then too.
+
+The answer is no.`,
+      },
+    ],
+    background: 'harga_meadow',
+    ambientSound: 'evening_birds',
+    sounds: {
+      onEnter: 'commune_whisper',
+    },
+    transitionType: 'dissolve',
+    typingSpeed: 'slow',
+    pauseAfterMs: 4000,
+    stressModifiers: { pulse: 35, exposure: 20, mask: 60 },
+    choices: [
+      {
+        id: 'admit_not_held',
+        text: '"No."',
+        effects: {
+          perception: { grief: 8, autonomy: 8, belonging: 5 },
+          relationships: { pelle: 10, christian: -10 },
+          flags: { told_pelle_not_held: true },
+        },
+        next: 'day2_night',
+      },
+      {
+        id: 'defend_christian_pelle',
+        text: '"He tries. He\'s here, isn\'t he?"',
+        effects: {
+          perception: { autonomy: -5, grief: 5 },
+          relationships: { pelle: -3, christian: 3 },
+          flags: { defended_christian_to_pelle: true },
+        },
+        next: 'day2_night',
+      },
+      {
+        id: 'deflect_held',
+        text: 'Say nothing. Let the silence answer.',
+        effects: {
+          perception: { grief: 6, autonomy: 3, belonging: 3 },
+          relationships: { pelle: 5 },
+          flags: { silence_answered_pelle: true },
+        },
+        next: 'day2_night',
+      },
+    ],
   },
 
   // ═══════════════════════════════════════════════════

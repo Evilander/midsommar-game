@@ -13,9 +13,13 @@ export const DAY1_SCENES: SceneNode[] = [
     chapter: 'arrival',
     text: `The car windows are open.
 
-Warm air pushes the smell of grass through the back seat. Christian is asleep beside you, slack-mouthed, beautiful, unreachable. Pelle drives with one hand on the wheel. No one has spoken for several minutes.
+Warm air pushes the smell of grass through the back seat. Christian is asleep beside you, slack-mouthed, beautiful, unreachable. You've been together three years. He came on this trip because you needed him to, and he knew that saying no would finally be the thing that ended it.
 
-The sunlight sits over everything like it has decided not to leave.
+Pelle drives with one hand on the wheel — Christian's friend from the anthropology program, the one who invited everyone to his family's commune in Sweden for their midsummer festival. He's Swedish. Calm in a way that feels practiced or possibly just permanent. He glances at you in the rearview mirror more than seems necessary.
+
+In the back beside you and Christian: Josh, writing in his notebook — he's here for his thesis. And Mark, asleep against the window, here because Mark goes where the group goes.
+
+The light does not change.
 
 Your phone is dark. There will be no new messages. There is no one left to send them.
 
@@ -69,7 +73,7 @@ In the ditch, a line of blue flowers bends as the car passes. A second later, th
 
 Before you answer, he looks past you, out the windshield. "Oh. Wow."
 
-He doesn't look back at you. His face opens for the landscape in a way it hasn't opened for you in months.`,
+He doesn't look back at you. He keeps looking out the windshield instead of back at you.`,
     variants: [
       {
         condition: { type: 'grief', min: 80 },
@@ -100,7 +104,7 @@ You wonder if this is what grief does — makes you invisible to the people who 
 
 He pauses, then adds quietly: "I'm glad you came, Dani. It means something that you're here."
 
-His voice is so gentle it makes your throat ache. When was the last time someone said your name like it mattered?`,
+His voice is so gentle it makes your throat ache. You are not used to hearing your name said that gently.`,
     variants: [
       {
         condition: { type: 'grief', min: 80 },
@@ -110,7 +114,7 @@ His voice is so gentle it makes your throat ache. When was the last time someone
 
 He pauses, then adds quietly: "I'm glad you came, Dani. I lost my parents too. Not in the same way. But I know what it is to have the ground taken away."
 
-His voice is so gentle it makes your throat ache. The gentleness is worse than cruelty. Cruelty you could push back against.`,
+His voice is gentle. That makes it harder to resist.`,
       },
     ],
     background: 'road_sweden',
@@ -123,11 +127,11 @@ His voice is so gentle it makes your throat ache. The gentleness is worse than c
     id: 'prologue_flowers',
     day: 1,
     chapter: 'arrival',
-    text: `One flower opens in the center like an eye. When you blink, it is only a flower again.
+    text: `One flower seems to open wider than the others. When you blink, it is normal again.
 
-But for a moment — just a moment — you felt it looking at you. Not with menace. With recognition.
+For a second the field seems wrong. Then the road turns.
 
-Like it knew you were coming. Like the whole meadow had been waiting, patient and bright, for exactly this car, exactly this girl, exactly this grief.`,
+Then the road turns and the feeling passes.`,
     background: 'road_sweden',
     ambientSound: 'car_wind_loop',
     visualEffects: [
@@ -150,9 +154,18 @@ White buildings. Painted runes. Long tables in impossible daylight. People waiti
 No one waves. They simply look happy that you have come.`,
     background: 'harga_gate',
     ambientSound: 'meadow_birds',
+    sounds: {
+      onEnter: 'chapter_transition',
+    },
     transitionType: 'dissolve',
     typingSpeed: 'slow',
     pauseAfterMs: 2500,
+    memoryBloom: {
+      lines: [
+        `You tense before the car stops. The gate feels familiar.`,
+        `The faces at the gate look prepared.`,
+      ],
+    },
     choices: [
       {
         id: 'reach_for_christian',
@@ -193,7 +206,7 @@ No one waves. They simply look happy that you have come.`,
     chapter: 'arrival',
     text: `He squeezes once, distracted, and lets go too soon.
 
-His attention is already on the buildings, the painted wood, the thesis forming behind his eyes. You can see it happen — the moment you stop being a person he's with and become a person he's near.
+His attention is already on the buildings, the painted wood, the thesis forming behind his eyes. You can see it happen — His attention is already somewhere else.
 
 Mark climbs out stretching, already grinning. "Dude, this is like a cult compound in the best way."
 
@@ -214,7 +227,7 @@ Josh elbows him. "Show some respect."
 
 The air smells of cut grass and something sweeter — elderflower, maybe, or honey left open in the sun.
 
-For the first time in weeks, your chest doesn't feel like it's being pressed flat. The space here is so wide that your grief has room to stand beside you instead of inside you.
+For the first time in weeks, your chest doesn't feel like it's being pressed flat. The space here is so wide that your chest loosens for the first time in weeks.
 
 Mark climbs out behind you. "Holy shit. Is it always this bright?"
 
@@ -313,7 +326,7 @@ For one impossible second, your ribs obey them.`,
     chapter: 'arrival',
     text: `The panic loosens. Not gone. Shared.
 
-The women's breath enters you through some channel that isn't air. You feel your heartbeat slow to match the rhythm of the circle forming around you. The elder places the wreath gently on your head.
+You start breathing at their pace. You feel your heartbeat slow to match the rhythm of the circle forming around you. The elder places the wreath gently on your head.
 
 "You carry so much," she whispers. "Here, we carry together."
 
@@ -623,7 +636,7 @@ You look at the sky. The sun has a face. It's looking at you.`,
 
 The world peels open like a flower. Layer after layer of reality folding back to reveal something underneath that is brighter, more organized, more true.
 
-The commune's singing starts — or maybe it was always happening and you couldn't hear it. The voices weave through the air like visible threads. You can see the sound. You can see the harmony. It has a shape, and the shape is a circle, and you are inside it.
+The commune's singing starts — or maybe it was always happening and you couldn't hear it. The singing seems physical. You can feel the rhythm moving through the field. It has a shape, and the shape is a circle, and you are inside it.
 
 A woman takes your hand. Her skin against yours is electric. You can feel her heartbeat through her palm, and your heart adjusts to match it. Two hearts beating in unison. Then three. Then the whole commune, a single vast pulse.
 
@@ -656,7 +669,7 @@ You nod. Under the mushrooms, that doesn't sound insane. It sounds like physics.
     id: 'arrival_trip_panic',
     day: 1,
     chapter: 'arrival',
-    text: `The panic hits like a door slamming.
+    text: `The panic starts all at once.
 
 One second you're watching the grass breathe and it's interesting. The next second the grass is breathing and that means the ground is alive and you're standing on something alive that could swallow you.
 
@@ -670,15 +683,15 @@ Christian appears. "Dani? Dani, you're okay. You're having a bad—"
 
 "I can see my sister. She's in the tree. Christian, she's in the tree."
 
-He puts his hand on your arm. His touch feels like insects. You pull away so hard you fall backward into the grass, which wraps around your shoulders like fingers.
+He puts his hand on your arm. You pull away so hard you fall backward into the grass.
 
-The Hårga women come. They don't speak. They form a circle around you and they breathe — deep, synchronized, the rhythm of the commune settling over your panic like a weighted blanket.
+The Hårga women come. They don't speak. They form a circle around you and they breathe together.
 
 Slowly — five minutes? thirty? — the breathing holds you together until your own heart finds the beat.
 
 The grass is just grass again.
 
-But the fear lives in your body now, and it will live there for the rest of your time in Hårga. Every time the flowers bend, every time the trees sway, you'll remember the moment the world opened up and showed you the thing underneath.`,
+But the fear stays in your body. Every time the flowers bend after that, you remember this.`,
     background: 'harga_meadow',
     ambientSound: 'panic_breathe',
     transitionType: 'cut',
@@ -745,7 +758,7 @@ A child tugs your sleeve.
 
 You look at the trees. They're still. Of course they're still.
 
-But for a second — just a second — you could swear the branches reached toward you.`,
+For a second, you think the branches move toward you.`,
     background: 'harga_meadow',
     ambientSound: 'trip_ambient_distant',
     typingSpeed: 'normal',
@@ -762,7 +775,7 @@ But for a second — just a second — you could swear the branches reached towa
     id: 'arrival_first_night',
     day: 1,
     chapter: 'arrival',
-    text: `Night doesn't come. The sun sits at the horizon like a held breath, painting everything in gold that refuses to dim.
+    text: `Night doesn't come. The sun stays low at the horizon and the light does not go away.
 
 You lie in the narrow bed. Through the thin walls, you hear singing — a low, wordless harmony that rises and falls with the rhythm of breathing.
 
@@ -875,7 +888,7 @@ You don't sleep for a long time.`,
     chapter: 'arrival',
     text: `You listen.
 
-The singing goes on for an hour. Maybe two. Time moves differently here — not faster, not slower, but sideways, like a river finding a new channel.
+The singing goes on for an hour. Maybe two. You lose track of how long the singing lasts.
 
 The harmonies are simple but layered. Each voice is distinct, but they move together with a precision that feels less like practice and more like instinct. Like breathing. Like a heartbeat shared between fifty people.
 

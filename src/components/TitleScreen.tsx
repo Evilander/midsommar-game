@@ -2,6 +2,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 
 import { getCycleCount } from '../engine/ghost'
+import { getCommunionLine } from '../engine/communion-tracker'
+import { resumeSoundtrack } from '../engine/soundtrack'
 import type { RuntimeBridge } from './runtimeBridge'
 
 const HOLD_DURATION_MS = 3000
@@ -36,6 +38,7 @@ export function TitleScreen({
   const [holdMs, setHoldMs] = useState(0)
   const [isHolding, setIsHolding] = useState(false)
   const cycles = getCycleCount()
+  const communionLine = getCommunionLine()
 
   const holdRef = useRef(0)
   const holdingRef = useRef(false)
@@ -81,6 +84,7 @@ export function TitleScreen({
 
   const beginHold = () => {
     if (completedRef.current || holdingRef.current) return
+    resumeSoundtrack()
 
     holdingRef.current = true
     setIsHolding(true)
@@ -167,6 +171,17 @@ export function TitleScreen({
           >
             again
           </motion.span>
+        )}
+
+        {communionLine && (
+          <motion.p
+            className="title-screen__communion"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.35 }}
+            transition={{ delay: 2.5, duration: 1.5 }}
+          >
+            {communionLine}
+          </motion.p>
         )}
 
         <motion.div

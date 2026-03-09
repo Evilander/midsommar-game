@@ -1,24 +1,38 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { breathIn, breathOut, startBreathSync, stopBreathSync } from './engine/breath-sync'
+import { breathIn, breathOut, onBreathChange, startBreathSync, stopBreathSync } from './engine/breath-sync'
 import { adaptiveTextSpeedMultiplier, recordChoiceBehavior, type ChoiceAlignment } from './engine/commune-intelligence'
+import { finalizeIntent } from './engine/intent-harvest'
 import { resolveChoices, resolveText, resolveTypingDelay, resolveVisualEffects } from './engine/director'
-import { getTabTitle, getHiddenTitle, getReturnTitle, markChoicesVisible, recordDecisionTime, timeOfDayStressModifier } from './engine/fourthwall'
+import { getHesitationLevel, getTabTitle, getHiddenTitle, getReturnTitle, markChoicesVisible, recordDecisionTime, timeOfDayStressModifier } from './engine/fourthwall'
+import { derivePsychedelicLevel } from './engine/psychedelic'
+import { setSoundEffectsMasterVolume } from './engine/sound-effects'
 import { computeStress, textDistortionLevel } from './engine/stress'
+import { initSoundtrack, playSoundtrackForScene, resumeSoundtrack, setSoundtrackEnabled, setSoundtrackVolume } from './engine/soundtrack'
 import { AmbientSoundbed } from './components/AmbientSoundbed'
 import { ChapterCard } from './components/ChapterCard'
 import { ClueJournal } from './components/ClueJournal'
-import { CreditsScreen } from './components/CreditsScreen'
-import { EndingScreen } from './components/EndingScreen'
 import { HeartbeatEngine } from './components/HeartbeatEngine'
-import { JourneySummary } from './components/JourneySummary'
-import { MayQueenDance } from './components/MayQueenDance'
 import { ParticleLayer } from './components/ParticleLayer'
 import { SceneRenderer } from './components/SceneRenderer'
 import { SettingsOverlay } from './components/SettingsOverlay'
 import { TitleScreen } from './components/TitleScreen'
+import { ContentWarning } from './components/ContentWarning'
+import { ExplorationRenderer } from './components/ExplorationRenderer'
 import { WitnessOverlay } from './components/WitnessOverlay'
+import { AchievementToast } from './components/AchievementToast'
+import { ChoiceRegretFlash } from './components/ChoiceRegretFlash'
+import { DreadMeter } from './components/DreadMeter'
+import { ShepardTone } from './components/ShepardTone'
+import { TransitionStinger } from './components/TransitionStinger'
+import { recordChoice, recordSceneVisit, recordSessionStart } from './engine/communion-tracker'
+
+// Phase-specific components — lazy loaded, fetched during transition animations
+const EndingScreen = lazy(() => import('./components/EndingScreen').then(m => ({ default: m.EndingScreen })))
+const JourneySummary = lazy(() => import('./components/JourneySummary').then(m => ({ default: m.JourneySummary })))
+const MayQueenDance = lazy(() => import('./components/MayQueenDance').then(m => ({ default: m.MayQueenDance })))
+const CreditsScreen = lazy(() => import('./components/CreditsScreen').then(m => ({ default: m.CreditsScreen })))
 import type { RuntimeBridge } from './components/runtimeBridge'
 import {
   getCurrentScene,
@@ -37,7 +51,7 @@ declare global {
   }
 }
 
-type AppPhase = 'title' | 'chapter_card' | 'playing' | 'ending' | 'journey' | 'credits'
+type AppPhase = 'warning' | 'title' | 'chapter_card' | 'playing' | 'ending' | 'journey' | 'credits'
 
 type ParticlePreset = 'flowers' | 'embers' | 'pollen' | 'snow' | 'none'
 
@@ -51,17 +65,20 @@ function getParticlePreset(background?: string): ParticlePreset {
 }
 
 function App() {
-  const [phase, setPhase] = useState<AppPhase>('title')
+  const [phase, setPhase] = useState<AppPhase>('warning')
   const [settings, setSettings] = useState<GameSettings>(loadSettings)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [journalOpen, setJournalOpen] = useState(false)
   const [pendingDay, setPendingDay] = useState<number | null>(null)
   const [lastDay, setLastDay] = useState(1)
+  const [breathCoherence, setBreathCoherence] = useState(0)
+  const [rejectedChoiceTexts, setRejectedChoiceTexts] = useState<string[]>([])
+  const [hasDeadlineActive, setHasDeadlineActive] = useState(false)
   const bridgeRef = useRef<RuntimeBridge | null>(null)
 
   const gameState = useGameStore((state) => state)
   const rawMakeChoice = useGameStore((state) => state.makeChoice)
-  const advanceScene = useGameStore((state) => state.advanceScene)
+  const rawAdvanceScene = useGameStore((state) => state.advanceScene)
   const resetGame = useGameStore((state) => state.resetGame)
   const restoreSave = useGameStore((state) => state.restoreSave)
 
@@ -70,11 +87,93 @@ function App() {
   const resolvedText = useMemo(() => resolveText(currentScene, gameState), [currentScene, gameState])
   const choices = useMemo(() => resolveChoices(currentScene, gameState), [currentScene, gameState])
 
-  // Wrap makeChoice to record Fourth Wall decision timing + commune intelligence
+  // Derived state — must be declared before callbacks that use them
+  const typingDelay = useMemo(() => {
+    const base = resolveTypingDelay(currentScene, gameState)
+    let adjusted: number
+    switch (settings.textSpeed) {
+      case 'instant': adjusted = 0; break
+      case 'fast': adjusted = Math.round(base * 0.5); break
+      case 'slow': adjusted = Math.round(base * 1.5); break
+      default: adjusted = base
+    }
+    if (adjusted > 0) {
+      adjusted = Math.round(adjusted * adaptiveTextSpeedMultiplier())
+    }
+    return adjusted
+  }, [currentScene, gameState, settings.textSpeed])
+  const effects = useMemo(() => resolveVisualEffects(currentScene, gameState), [currentScene, gameState])
+  const stress = useMemo(() => {
+    const base = computeStress(currentScene, gameState)
+    const todMod = timeOfDayStressModifier()
+    let { pulse, exposure, dissociation } = base
+
+    // Real-world time stress — anxiety is worse at 3 AM
+    if (todMod > 0) {
+      pulse = Math.min(100, pulse + todMod)
+      dissociation = Math.min(100, dissociation + Math.floor(todMod / 2))
+    }
+
+    // Breath coherence reward — controlled breathing reduces physiological arousal
+    if (breathCoherence > 0.5) {
+      const reduction = (breathCoherence - 0.5) * 20
+      pulse = Math.max(0, pulse - reduction)
+    }
+
+    // Hesitation pressure — the commune notices when you can't decide
+    const hesitation = getHesitationLevel()
+    if (hesitation > 0) {
+      exposure = Math.min(100, exposure + hesitation * 8)
+    }
+
+    return { ...base, pulse, exposure, dissociation }
+  }, [currentScene, gameState, breathCoherence])
+  const distortion = useMemo(
+    () => settings.enableDistortion ? textDistortionLevel(stress) : 0,
+    [stress, settings.enableDistortion],
+  )
+  const psychedelicLevel = useMemo(
+    () => settings.enableScreenEffects
+      ? derivePsychedelicLevel(
+          gameState.perception.intoxication,
+          stress.dissociation,
+          gameState.perception.sleep,
+          gameState.perception.grief,
+        )
+      : 0,
+    [gameState.perception.intoxication, stress.dissociation, gameState.perception.sleep, gameState.perception.grief, settings.enableScreenEffects],
+  )
+
+  const sceneMode = currentScene.mode ?? 'narrative'
+  const particlePreset = getParticlePreset(currentScene.background)
+
+  // Check for scene transitions after any state-changing action
+  const checkSceneTransition = useCallback(() => {
+    const newState = useGameStore.getState()
+    const newScene = getCurrentScene(newState)
+    const id = newScene.id
+    if (id === 'ending_fire' || id === 'ending_walk' || id === 'ending_sacrifice' || id === 'ending_surrender') {
+      setPhase('ending')
+      return
+    }
+    if (newScene.day !== lastDay) {
+      // Show chapter card only when entering a genuinely new chapter —
+      // not when day changes within a multi-day chapter (e.g. Day 5-7)
+      const prevChapter = [...CHAPTERS].reverse().find(c => c.day <= lastDay)
+      const nextChapter = [...CHAPTERS].reverse().find(c => c.day <= newScene.day)
+      if (nextChapter && nextChapter.id !== prevChapter?.id) {
+        setPendingDay(newScene.day)
+        setPhase('chapter_card')
+      } else {
+        setLastDay(newScene.day)
+      }
+    }
+  }, [lastDay])
+
+  // Wrap makeChoice to record Fourth Wall decision timing + commune intelligence + intent harvest
   const makeChoice = useCallback((choiceId: string) => {
     const decisionMs = recordDecisionTime()
 
-    // Detect alignment for commune intelligence
     const choice = choices.find(c => c.id === choiceId)
     let alignment: ChoiceAlignment = 'neutral'
     if (choice) {
@@ -90,59 +189,26 @@ function App() {
       }
     }
     recordChoiceBehavior(decisionMs, alignment)
+    finalizeIntent(choiceId, gameState.chorusLevel, stress)
+
+    // Track rejected choices for regret flash
+    const rejected = choices.filter(c => c.id !== choiceId).map(c => c.text)
+    setRejectedChoiceTexts(rejected)
+
+    // Communion tracking — record choice stats
+    const belongingDelta = choice?.effects?.perception?.belonging ?? 0
+    const autonomyDelta = choice?.effects?.perception?.autonomy ?? 0
+    recordChoice(belongingDelta, autonomyDelta)
 
     rawMakeChoice(choiceId)
-  }, [rawMakeChoice, choices, currentScene.pressure])
-  const typingDelay = useMemo(() => {
-    const base = resolveTypingDelay(currentScene, gameState)
-    // Apply user's textSpeed setting
-    let adjusted: number
-    switch (settings.textSpeed) {
-      case 'instant': adjusted = 0; break
-      case 'fast': adjusted = Math.round(base * 0.5); break
-      case 'slow': adjusted = Math.round(base * 1.5); break
-      default: adjusted = base
-    }
-    // Commune intelligence: adapt pacing to player reading behavior
-    if (adjusted > 0) {
-      adjusted = Math.round(adjusted * adaptiveTextSpeedMultiplier())
-    }
-    return adjusted
-  }, [currentScene, gameState, settings.textSpeed])
-  const effects = useMemo(() => resolveVisualEffects(currentScene, gameState), [currentScene, gameState])
-  const stress = useMemo(() => {
-    const base = computeStress(currentScene, gameState)
-    // Fourth Wall: playing late at night amplifies anxiety
-    const todMod = timeOfDayStressModifier()
-    if (todMod > 0) {
-      return {
-        ...base,
-        pulse: Math.min(100, base.pulse + todMod),
-        dissociation: Math.min(100, base.dissociation + Math.floor(todMod / 2)),
-      }
-    }
-    return base
-  }, [currentScene, gameState])
-  const distortion = useMemo(() => textDistortionLevel(stress), [stress])
+    checkSceneTransition()
+  }, [rawMakeChoice, choices, currentScene.pressure, checkSceneTransition, gameState.chorusLevel, stress])
 
-  const sceneMode = currentScene.mode ?? 'narrative'
-  const particlePreset = getParticlePreset(currentScene.background)
-
-  // Detect endings and day changes — endings take priority
-  useEffect(() => {
-    if (phase !== 'playing') return
-
-    const id = currentScene.id
-    if (id === 'ending_fire' || id === 'ending_walk' || id === 'ending_sacrifice') {
-      setPhase('ending')
-      return
-    }
-
-    if (currentScene.day !== lastDay) {
-      setPendingDay(currentScene.day)
-      setPhase('chapter_card')
-    }
-  }, [currentScene.id, currentScene.day, lastDay, phase])
+  const advanceScene = useCallback(() => {
+    recordSceneVisit()
+    rawAdvanceScene()
+    checkSceneTransition()
+  }, [rawAdvanceScene, checkSceneTransition])
 
   const handleChapterComplete = useCallback(() => {
     if (pendingDay !== null) setLastDay(pendingDay)
@@ -154,15 +220,23 @@ function App() {
     if (fromSave) {
       const restored = restoreSave()
       if (restored) {
-        setLastDay(useGameStore.getState().day)
-        setPhase('playing')
+        const state = useGameStore.getState()
+        const scene = getCurrentScene(state)
+        setLastDay(state.day)
+        // Detect if save is on an ending scene — restore to the correct phase
+        if (scene.id.startsWith('ending_')) {
+          setPhase('ending')
+        } else {
+          setPhase('playing')
+        }
         return
       }
     }
+    recordSessionStart()
     resetGame()
-    setLastDay(1)
+    setLastDay(0)
     setPhase('chapter_card')
-    setPendingDay(1)
+    setPendingDay(0)
   }, [resetGame, restoreSave])
 
   const handleSettingsChange = useCallback((next: GameSettings) => {
@@ -205,13 +279,26 @@ function App() {
   }, [phase])
 
   const chapterInfo = pendingDay !== null
-    ? CHAPTERS.find((c) => c.day === pendingDay)
+    ? [...CHAPTERS].reverse().find((c) => c.day <= pendingDay) ?? null
     : null
 
-  // Wire progressive saturation to DOM
+  // Wire progressive saturation and font size to DOM
   useEffect(() => {
     document.documentElement.setAttribute('data-day', String(currentScene.day ?? 1))
-  }, [currentScene.day])
+    document.documentElement.setAttribute('data-chorus', String(gameState.chorusLevel))
+
+    // Pulse level for background stress animation
+    const pulseLevel = stress.pulse < 30 ? 'low' : stress.pulse < 55 ? 'medium' : stress.pulse < 80 ? 'high' : 'critical'
+    document.documentElement.setAttribute('data-pulse-level', pulseLevel)
+    document.documentElement.style.setProperty('--pulse-intensity', String(Math.min(0.15, stress.pulse / 600)))
+
+    // Track deadline state for Shepard tone
+    setHasDeadlineActive(!!currentScene.pressure)
+  }, [currentScene.day, gameState.chorusLevel, stress.pulse, currentScene.pressure])
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-font-size', settings.fontSize)
+  }, [settings.fontSize])
 
   // Fourth Wall: tab title changes based on game state
   useEffect(() => {
@@ -220,22 +307,27 @@ function App() {
 
   // Fourth Wall: visibility awareness — commune notices when you look away
   useEffect(() => {
+    let returnTimer: ReturnType<typeof setTimeout> | undefined
+
     const handleVisibility = () => {
+      if (returnTimer) clearTimeout(returnTimer)
+
       if (document.hidden) {
         const hiddenTitle = getHiddenTitle(currentScene, gameState)
         if (hiddenTitle) document.title = hiddenTitle
       } else {
-        // Brief return acknowledgment, then restore normal title
         document.title = getReturnTitle(gameState)
-        const timer = setTimeout(() => {
+        returnTimer = setTimeout(() => {
           document.title = getTabTitle(phase, currentScene, gameState)
         }, 2000)
-        return () => clearTimeout(timer)
       }
     }
 
     document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
+    return () => {
+      if (returnTimer) clearTimeout(returnTimer)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [phase, currentScene, gameState])
 
   // Fourth Wall: record when choices become visible (for decision timing)
@@ -252,6 +344,14 @@ function App() {
       return
     }
     startBreathSync()
+
+    // Subscribe to breath state — coherence feeds into stress reduction
+    const unsubBreath = onBreathChange((state) => {
+      setBreathCoherence((prev) => {
+        if (Math.abs(state.coherence - prev) > 0.08) return state.coherence
+        return prev
+      })
+    })
 
     let isBreathing = false
 
@@ -275,10 +375,45 @@ function App() {
 
     return () => {
       stopBreathSync()
+      unsubBreath()
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
   }, [phase])
+
+  // Soundtrack: enable on mount
+  useEffect(() => {
+    const tracks = initSoundtrack()
+    if (tracks.length > 0) {
+      setSoundtrackEnabled(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    setSoundtrackVolume(settings.soundtrackVolume * settings.masterVolume)
+  }, [settings.soundtrackVolume, settings.masterVolume])
+
+  useEffect(() => {
+    setSoundEffectsMasterVolume(settings.masterVolume)
+  }, [settings.masterVolume])
+
+  useEffect(() => {
+    // Soundtrack plays during title screen AND gameplay
+    if (phase === 'title' || phase === 'warning') {
+      playSoundtrackForScene('title', {
+        chorusLevel: 0, intoxication: 0, pulse: 0, day: 0, isRitual: false,
+      })
+      return
+    }
+    if (phase !== 'playing') return
+    playSoundtrackForScene(currentScene.id, {
+      chorusLevel: gameState.chorusLevel,
+      intoxication: gameState.perception.intoxication,
+      pulse: stress.pulse,
+      day: gameState.day,
+      isRitual: sceneMode === 'ritual' || sceneMode === 'rhythm',
+    })
+  }, [currentScene.id, gameState.chorusLevel, gameState.perception.intoxication, stress.pulse, gameState.day, sceneMode, phase])
 
   return (
     <main className="app-shell">
@@ -293,7 +428,31 @@ function App() {
         enabled={phase === 'playing' && stress.pulse > 30}
         volume={settings.masterVolume}
       />
-      <WitnessOverlay exposure={phase === 'playing' ? stress.exposure : 0} />
+      <WitnessOverlay exposure={phase === 'playing' && settings.enableScreenEffects ? stress.exposure : 0} />
+      <AchievementToast gameState={gameState} enabled={phase === 'playing'} />
+      <ChoiceRegretFlash
+        rejectedChoices={rejectedChoiceTexts}
+        chorusLevel={gameState.chorusLevel}
+        enabled={phase === 'playing' && settings.enableScreenEffects}
+      />
+      <ShepardTone
+        active={phase === 'playing' && hasDeadlineActive && stress.pulse > 40}
+        intensity={Math.min(1, stress.pulse / 80)}
+        volume={settings.masterVolume * 0.6}
+      />
+      <TransitionStinger
+        sceneId={currentScene.id}
+        enabled={phase === 'playing' && settings.enableScreenEffects}
+      />
+      <DreadMeter
+        belonging={gameState.perception.belonging}
+        autonomy={gameState.perception.autonomy}
+        grief={gameState.perception.grief}
+        chorusLevel={gameState.chorusLevel}
+        pulse={stress.pulse}
+        day={currentScene.day ?? 0}
+        enabled={phase === 'playing'}
+      />
       <ParticleLayer
         preset={phase === 'playing' ? particlePreset : 'none'}
         intensity={stress.dissociation > 40 ? 0.8 : 0.35}
@@ -347,12 +506,19 @@ function App() {
 
       {/* Main content phases */}
       <AnimatePresence initial={false} mode="wait">
+        {phase === 'warning' && (
+          <ContentWarning
+            key="warning"
+            onAccept={() => { resumeSoundtrack(); setPhase('title') }}
+          />
+        )}
+
         {phase === 'title' && (
           <TitleScreen
             key="title"
-            onStart={() => handleStart(false)}
+            onStart={() => { resumeSoundtrack(); handleStart(false) }}
             hasSaveData={hasSave()}
-            onContinue={() => handleStart(true)}
+            onContinue={() => { resumeSoundtrack(); handleStart(true) }}
             registerBridge={(bridge) => { bridgeRef.current = bridge }}
           />
         )}
@@ -376,28 +542,47 @@ function App() {
             exit={{ opacity: 0 }}
           >
             {sceneMode === 'rhythm' ? (
-              <MayQueenDance
-                onComplete={(result) => {
-                  const flagUpdate: Record<string, boolean> = {}
-                  if (result.surrendered) {
-                    flagUpdate.surrendered_to_dance = true
-                  } else {
-                    flagUpdate.fought_for_crown = true
-                  }
+              <Suspense fallback={null}>
+                <MayQueenDance
+                  onComplete={(result) => {
+                    const flagUpdate: Record<string, boolean> = {}
+                    if (result.surrendered) {
+                      flagUpdate.surrendered_to_dance = true
+                    } else {
+                      flagUpdate.fought_for_crown = true
+                    }
+                    useGameStore.setState((state) => ({
+                      flags: { ...state.flags, ...flagUpdate },
+                    }))
+                    advanceScene()
+                  }}
+                  onStatsDelta={(delta) => {
+                    useGameStore.setState((state) => ({
+                      perception: {
+                        ...state.perception,
+                        belonging: Math.min(100, Math.max(0, state.perception.belonging + delta.belonging)),
+                        autonomy: Math.min(100, Math.max(0, state.perception.autonomy + delta.autonomy)),
+                      },
+                    }))
+                  }}
+                />
+              </Suspense>
+            ) : sceneMode === 'exploration' ? (
+              <ExplorationRenderer
+                scene={currentScene}
+                gameState={gameState}
+                stress={stress}
+                chorusLevel={gameState.chorusLevel}
+                onClueFound={(clue) => {
                   useGameStore.setState((state) => ({
-                    flags: { ...state.flags, ...flagUpdate },
-                  }))
-                  advanceScene()
-                }}
-                onStatsDelta={(delta) => {
-                  useGameStore.setState((state) => ({
-                    perception: {
-                      ...state.perception,
-                      belonging: Math.min(100, Math.max(0, state.perception.belonging + delta.belonging)),
-                      autonomy: Math.min(100, Math.max(0, state.perception.autonomy + delta.autonomy)),
-                    },
+                    clues: [...state.clues, clue],
                   }))
                 }}
+                onHotspotScene={(sceneId) => {
+                  useGameStore.getState().loadScene(sceneId)
+                }}
+                onAdvance={advanceScene}
+                registerBridge={(bridge) => { bridgeRef.current = bridge }}
               />
             ) : (
               <SceneRenderer
@@ -409,6 +594,7 @@ function App() {
                 effects={effects}
                 stress={stress}
                 distortionLevel={distortion}
+                psychedelicLevel={psychedelicLevel}
                 onChoose={makeChoice}
                 onAdvance={advanceScene}
                 registerBridge={(bridge) => { bridgeRef.current = bridge }}
@@ -418,27 +604,33 @@ function App() {
         )}
 
         {phase === 'ending' && (
-          <EndingScreen
-            key="ending"
-            gameState={gameState}
-            onContinue={() => setPhase('journey')}
-          />
+          <Suspense fallback={null}>
+            <EndingScreen
+              key="ending"
+              gameState={gameState}
+              onContinue={() => setPhase('journey')}
+            />
+          </Suspense>
         )}
 
         {phase === 'journey' && (
-          <JourneySummary
-            key="journey"
-            gameState={gameState}
-            onNewGame={() => { resetGame(); setPhase('title') }}
-            onCredits={() => setPhase('credits')}
-          />
+          <Suspense fallback={null}>
+            <JourneySummary
+              key="journey"
+              gameState={gameState}
+              onNewGame={() => { resetGame(); setPhase('title') }}
+              onCredits={() => setPhase('credits')}
+            />
+          </Suspense>
         )}
 
         {phase === 'credits' && (
-          <CreditsScreen
-            key="credits"
-            onReturn={() => { resetGame(); setPhase('title') }}
-          />
+          <Suspense fallback={null}>
+            <CreditsScreen
+              key="credits"
+              onReturn={() => { resetGame(); setPhase('title') }}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
     </main>

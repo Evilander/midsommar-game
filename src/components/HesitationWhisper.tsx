@@ -5,6 +5,7 @@ import { AnimatePresence, cubicBezier, motion } from 'framer-motion'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { isPlayerHesitating } from '../engine/commune-intelligence'
+import { playGameSound, preloadGameSounds } from '../engine/game-sounds'
 
 const EASE_SOFT = cubicBezier(0.22, 1, 0.36, 1)
 
@@ -28,24 +29,46 @@ const WHISPERS_HIGH_CHORUS = [
 function HesitationWhisperInner({ chorusLevel }: { chorusLevel: number }) {
   const [whisper, setWhisper] = useState<string | null>(null)
   const startTimeRef = useRef(0)
+  const whisperCountRef = useRef(0)
+  const lastWhisperRef = useRef('')
 
   const pickWhisper = useCallback(() => {
     const pool = chorusLevel >= 3 ? WHISPERS_HIGH_CHORUS : WHISPERS_LOW_CHORUS
-    setWhisper(pool[Math.floor(Math.random() * pool.length)])
+    // Avoid repeating the same whisper
+    let next = pool[Math.floor(Math.random() * pool.length)]
+    if (next === lastWhisperRef.current && pool.length > 1) {
+      next = pool[(pool.indexOf(next) + 1) % pool.length]
+    }
+    lastWhisperRef.current = next
+    whisperCountRef.current++
+    setWhisper(next)
   }, [chorusLevel])
 
   useEffect(() => {
     startTimeRef.current = performance.now()
+    whisperCountRef.current = 0
+    void preloadGameSounds(['commune_whisper'])
 
+    // Max whispers: 2 at low chorus, 3 at high chorus — prevents looping
+    const maxWhispers = chorusLevel >= 3 ? 3 : 2
+    // First whisper after hesitation, then longer cooldowns between subsequent ones
     const interval = setInterval(() => {
+      if (whisperCountRef.current >= maxWhispers) return
       const elapsed = performance.now() - startTimeRef.current
-      if (isPlayerHesitating(elapsed)) {
+      // Require longer hesitation for subsequent whispers (diminishing returns)
+      const threshold = whisperCountRef.current === 0 ? 1 : 1.5 + whisperCountRef.current * 0.5
+      if (isPlayerHesitating(elapsed / threshold)) {
         pickWhisper()
       }
-    }, 2000)
+    }, 3500)
 
     return () => clearInterval(interval)
-  }, [pickWhisper])
+  }, [pickWhisper, chorusLevel])
+
+  useEffect(() => {
+    if (!whisper) return
+    void playGameSound('commune_whisper')
+  }, [whisper])
 
   return (
     <AnimatePresence>

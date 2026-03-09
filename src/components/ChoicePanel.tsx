@@ -1,5 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
+import { useCallback, useEffect } from 'react'
 
+import { playGameSound, preloadGameSounds } from '../engine/game-sounds'
 import type { Choice } from '../engine/types'
 
 export function ChoicePanel({
@@ -12,6 +14,17 @@ export function ChoicePanel({
   onChoose: (choiceId: string) => void
 }) {
   const chorusActive = chorusLevel >= 3
+
+  useEffect(() => {
+    if (choices.length > 0) {
+      void preloadGameSounds(['choice_click', 'choice_hover'])
+    }
+  }, [choices.length])
+
+  const handleChoose = useCallback((choiceId: string) => {
+    void playGameSound('choice_click')
+    onChoose(choiceId)
+  }, [onChoose])
 
   return (
     <AnimatePresence>
@@ -36,7 +49,8 @@ export function ChoicePanel({
               key={choice.id}
               type="button"
               className={`choice-button${chorusActive ? ' choice-button--chorus' : ''}`}
-              onClick={() => onChoose(choice.id)}
+              onClick={() => handleChoose(choice.id)}
+              onMouseEnter={() => void playGameSound('choice_hover')}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}

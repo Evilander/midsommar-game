@@ -86,10 +86,18 @@ export function getPreviousChoiceId(sceneId: string): string | null {
   return echoes.sort((a, b) => b.cycle - a.cycle)[0].choiceId
 }
 
+export function hasPreviousChoice(sceneId: string, choiceId: string): boolean {
+  return getSceneEchoes(sceneId).some((echo) => echo.choiceId === choiceId)
+}
+
 export function getCycleCount(): number {
   return loadGhostRecord().cycles
 }
 
 export function getSeenEndings(): string[] {
   return loadGhostRecord().endings
+}
+
+export function hasSeenEnding(ending: string): boolean {
+  return loadGhostRecord().endings.includes(ending)
 }

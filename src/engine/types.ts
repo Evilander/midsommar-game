@@ -4,6 +4,8 @@
 // PERCEPTION STATE — drives The Chorus mechanic
 // ═══════════════════════════════════════════════════
 
+import type { GameSoundId } from './game-sounds'
+
 export type PerceptionAxis = {
   grief: number       // 0-100: weight of family loss
   belonging: number   // 0-100: how deeply entrained by the Hårga
@@ -51,6 +53,7 @@ export interface GameState {
   day: number                    // 1-9
   chapter: string                // current chapter id
   scene: string                  // current scene id
+  currentSceneId?: string        // compatibility alias for UI systems that key off the active scene
   perception: PerceptionAxis
   relationships: RelationshipState
   stress: StressState            // anxiety/pressure state
@@ -71,13 +74,22 @@ export interface TextVariant {
   text: string
 }
 
+export interface MemoryBloomConfig {
+  thresholdCycle?: number
+  lines: string[]
+}
+
 export type VariantCondition =
   | { type: 'belonging', min?: number, max?: number }
   | { type: 'grief', min?: number, max?: number }
   | { type: 'intoxication', min?: number, max?: number }
   | { type: 'autonomy', min?: number, max?: number }
+  | { type: 'cycle', min?: number, max?: number }
+  | { type: 'clue', clueId: string }
   | { type: 'flag', flag: string, value: boolean }
+  | { type: 'previousChoice', sceneId: string, choiceId: string }
   | { type: 'relationship', target: keyof RelationshipState, min?: number, max?: number }
+  | { type: 'seenEnding', ending: string }
   | { type: 'chorus', min?: number, max?: number }
   | { type: 'always' }
 
@@ -163,6 +175,8 @@ export interface SceneNode {
   // Narrative content
   text: string                    // default prose
   variants?: TextVariant[]        // perception-dependent rewrites
+  echoes?: TextVariant[]          // additive conditional lines appended after the resolved base text
+  memoryBloom?: MemoryBloomConfig // New Game+ text that blooms once the commune remembers you
 
   // Choices
   choices?: Choice[]              // player choices (if absent, auto-advance)
@@ -183,6 +197,11 @@ export interface SceneNode {
   // Presentation
   background?: string             // background art/gradient token
   ambientSound?: string           // audio loop token
+  sounds?: {
+    onEnter?: GameSoundId
+    onTextComplete?: GameSoundId
+    onChoicesReveal?: GameSoundId
+  }
   transitionType?: 'fade' | 'dissolve' | 'cut' | 'breathe' | 'ritual'
   typingSpeed?: 'slow' | 'normal' | 'fast' | 'instant'
 
@@ -228,27 +247,27 @@ export const INITIAL_STRESS: StressState = {
 }
 
 export const INITIAL_STATE: GameState = {
-  day: 1,
-  chapter: 'arrival',
-  scene: 'prologue_car',
+  day: 0,
+  chapter: 'prologue',
+  scene: 'prologue_apartment',
   perception: {
-    grief: 85,
+    grief: 40,       // starts moderate — the family is alive, but Dani is anxious
     belonging: 5,
     trust: 20,
     intoxication: 0,
-    sleep: 60,
-    autonomy: 90,
+    sleep: 45,       // she hasn't been sleeping well
+    autonomy: 75,    // still has agency, but anxiety is eroding it
   },
   relationships: {
-    christian: 15,
-    pelle: 30,
-    harga: 10,
-    mark: 40,
-    josh: 35,
+    christian: 35,   // strained but present — he's still her boyfriend
+    pelle: 0,        // hasn't met him yet
+    harga: 0,        // hasn't heard of them
+    mark: 0,
+    josh: 0,
   },
   stress: { ...INITIAL_STRESS },
   flags: {},
-  inventory: ['family_photo', 'phone_dead'],
+  inventory: ['phone'],
   clues: [],
   history: [],
   chorusLevel: 0,

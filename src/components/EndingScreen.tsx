@@ -3,6 +3,7 @@
 import { cubicBezier, motion } from 'framer-motion'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { playGameSound, preloadGameSounds } from '../engine/game-sounds'
 import { completeCycle, getCycleCount, getSeenEndings } from '../engine/ghost'
 import type { GameState } from '../engine/types'
 
@@ -68,11 +69,15 @@ export function EndingScreen({
   const [canSkip, setCanSkip] = useState(false)
   const recordedRef = useRef(false)
 
-  // Record this cycle's completion for the ghost system
+  // Record this cycle's completion and play ending-specific sound
   useEffect(() => {
     if (recordedRef.current) return
     recordedRef.current = true
     completeCycle(ending)
+
+    void preloadGameSounds(['fire_ignite', 'ghost_echo', 'wail_begin'])
+    const soundMap = { fire: 'fire_ignite', walk: 'ghost_echo', sacrifice: 'wail_begin' } as const
+    void playGameSound(soundMap[ending])
   }, [ending])
 
   const cycleCount = getCycleCount()
@@ -89,7 +94,9 @@ export function EndingScreen({
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset animation state on mount
     setVisibleLines(0)
+     
     setCanSkip(false)
 
     const timers: ReturnType<typeof setTimeout>[] = []

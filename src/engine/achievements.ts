@@ -72,20 +72,27 @@ const ACHIEVEMENTS: Achievement[] = [
     condition: (s) => !!s.flags.surrendered_to_dance,
   },
 
-  // ── Exploration ──
+  // ── Investigation ──
   {
-    id: 'found_blood_book',
-    title: 'The Rubi Radr',
-    description: 'Found the blood book.',
+    id: 'investigator',
+    title: 'Investigator',
+    description: 'Collected evidence of Mark\'s disappearance.',
     hidden: true,
-    condition: (s) => !!s.flags.found_blood_book,
+    condition: (s) => !!s.flags.kept_mark_evidence || !!s.flags.confronted_christian_mark_evidence,
   },
   {
-    id: 'explored_ruins',
-    title: 'Curious',
-    description: 'Explored the ruins.',
+    id: 'camera_strap',
+    title: 'The Camera Never Lies',
+    description: 'Found Josh\'s torn camera strap.',
     hidden: true,
-    condition: (s) => !!s.flags.explored_ruins,
+    condition: (s) => !!s.flags.hid_josh_camera_strap || !!s.flags.confronted_christian_with_camera,
+  },
+  {
+    id: 'betrayer',
+    title: 'The Informant',
+    description: 'Told Pelle about Josh\'s plan.',
+    hidden: true,
+    condition: (s) => !!s.flags.betrayed_josh,
   },
 
   // ── Perception milestones ──
@@ -127,11 +134,11 @@ const ACHIEVEMENTS: Achievement[] = [
     condition: (s) => !!s.flags.tried_to_leave_alone,
   },
   {
-    id: 'confronted_mark',
+    id: 'asked_about_mark',
     title: 'Said Something',
-    description: 'Confronted Mark.',
+    description: 'Asked where Mark went.',
     hidden: true,
-    condition: (s) => !!s.flags.confronted_mark,
+    condition: (s) => !!s.flags.asked_about_mark,
   },
   {
     id: 'chose_christian',

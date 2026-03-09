@@ -24,8 +24,10 @@ export function HeartbeatEngine({
   const enabledRef = useRef(enabled)
   const pulseRef = useRef(pulse)
 
-  enabledRef.current = enabled
-  pulseRef.current = pulse
+  useEffect(() => {
+    enabledRef.current = enabled
+    pulseRef.current = pulse
+  })
 
   useEffect(() => {
     if (!enabled) {

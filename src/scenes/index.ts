@@ -1,6 +1,7 @@
 // ─── Scene Registry ─── All narrative content indexed by scene id ───
 
 import type { SceneNode, Chapter } from '../engine/types'
+import { PROLOGUE_SCENES, PROLOGUE_CHAPTER } from './day0-prologue'
 import { DAY1_SCENES, DAY1_CHAPTER } from './day1-arrival'
 import { DAY2_SCENES, DAY2_CHAPTER } from './day2-attestupa'
 import { DAY3_SCENES, DAY3_CHAPTER } from './day3-isolation'
@@ -11,6 +12,7 @@ import { DAY9_SCENES, DAY9_CHAPTER } from './day9-fire'
 
 // All scenes in a flat array
 export const ALL_SCENES: SceneNode[] = [
+  ...PROLOGUE_SCENES,
   ...DAY1_SCENES,
   ...DAY2_SCENES,
   ...DAY3_SCENES,
@@ -22,6 +24,7 @@ export const ALL_SCENES: SceneNode[] = [
 
 // All chapters in order
 export const CHAPTERS: Chapter[] = [
+  PROLOGUE_CHAPTER,
   DAY1_CHAPTER,
   DAY2_CHAPTER,
   DAY3_CHAPTER,

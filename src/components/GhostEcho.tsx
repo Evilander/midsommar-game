@@ -4,6 +4,7 @@
 import { AnimatePresence, cubicBezier, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 
+import { playGameSound, preloadGameSounds } from '../engine/game-sounds'
 import { getSceneEchoes } from '../engine/ghost'
 
 const EASE_GHOST = cubicBezier(0.22, 1, 0.36, 1)
@@ -13,12 +14,15 @@ export function GhostEcho({ sceneId }: { sceneId: string }) {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset ghost state per scene
     setVisible(false)
+     
     setEchoText(null)
 
     const echoes = getSceneEchoes(sceneId)
     if (echoes.length === 0) return
 
+    void preloadGameSounds(['ghost_echo'])
     const latest = echoes.sort((a, b) => b.cycle - a.cycle)[0]
     setEchoText(latest.choiceText)
 
@@ -30,6 +34,11 @@ export function GhostEcho({ sceneId }: { sceneId: string }) {
       clearTimeout(hide)
     }
   }, [sceneId])
+
+  useEffect(() => {
+    if (!visible) return
+    void playGameSound('ghost_echo')
+  }, [visible])
 
   if (!echoText) return null
 
