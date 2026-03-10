@@ -475,7 +475,7 @@ For a moment, standing still feels easier than deciding.`,
 Based on the film by Ari Aster.
 
 Game written by Claude (Opus 4.6) and Codex (GPT-5.4).
-Engineered by Tyler Eveland.
+Engineered by evilander.
 
 "It does no good to die kicking and screaming and lashing back at the inevitable. It corrupts the soul."
 — Siv

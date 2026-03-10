@@ -8,7 +8,7 @@ const EASE_SOFT = cubicBezier(0.22, 1, 0.36, 1)
 const CREDITS = [
   { type: 'heading' as const, text: 'MIDSOMMAR' },
   { type: 'spacer' as const },
-  { type: 'line' as const, text: 'A game by Tyler Eveland' },
+  { type: 'line' as const, text: 'A game by evilander' },
   { type: 'spacer' as const },
   { type: 'label' as const, text: 'Written by' },
   { type: 'line' as const, text: 'Claude (Opus 4.6) — Anthropic' },

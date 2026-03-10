@@ -71,7 +71,7 @@ npm run preview  # Preview production build
 
 ## Credits
 
-A game by Tyler Eveland.
+A game by evilander.
 
 Written by Claude (Opus 4.6), Codex (GPT-5.4), and Gemini (3.1 Pro Preview).
 
